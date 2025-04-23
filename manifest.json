@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "GLM Translator",
+  "version": "1.0.0",
+  "description": "一款简洁高效的网页翻译工具，提供以下功能：\n\n翻译服务：\n• 智谱 GLM - AI 驱动的智能翻译\n• 自定义 API - 支持配置其他翻译服务\n\n核心功能：\n✓ 划词翻译 - 支持选中后立即翻译或显示图标\n✓ 右键菜单 - 快捷翻译选中文本\n✓ 多语言支持 - 支持多种语言互译\n✓ 简洁界面 - 无干扰的翻译体验\n✓ 高度可配置 - 可自定义翻译服务和触发方式",
+  "permissions": [
+    "storage",
+    "contextMenus"
+  ],
+  "host_permissions": ["https://*/", "http://*/"],
+  "background": {
+    "service_worker": "src/background/index.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/content.js"],
+      "css": ["src/content/styles.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "public/icons/icon16.png",
+      "48": "public/icons/icon48.png",
+      "128": "public/icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/index.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "public/icons/icon16.png",
+    "48": "public/icons/icon48.png",
+    "128": "public/icons/icon128.png"
+  },
+  "web_accessible_resources": [{
+    "resources": ["icons/*"],
+    "matches": ["<all_urls>"]
+  }]
+}

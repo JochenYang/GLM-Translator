@@ -1,0 +1,117 @@
+.glm-translator-icon {
+  position: fixed;
+  z-index: 9999;
+  width: 32px;
+  height: 32px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.glm-translator-icon:hover {
+  transform: scale(1.1);
+}
+
+.glm-translator-icon img {
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: contain;
+}
+
+.glm-translator-popup {
+  position: fixed;
+  z-index: 9999;
+  max-width: 400px;
+  min-width: 200px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+}
+
+.glm-translator-popup.visible {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.glm-translator-popup-content {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.glm-translator-loading {
+  color: #666;
+  text-align: center;
+  padding: 10px;
+}
+
+.glm-translator-original {
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.glm-translator-divider {
+  height: 1px;
+  background: #eee;
+  margin: 8px 0;
+}
+
+.glm-translator-result {
+  color: #1a73e8;
+}
+
+/* 添加翻译结果框样式 */
+#glm-translation-result {
+  position: absolute;
+  z-index: 999999;
+  max-width: 400px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.glm-translation-content {
+  position: relative;
+  padding-right: 24px;
+}
+
+.glm-translation-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.glm-translation-close {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  color: #666;
+  font-size: 16px;
+  border-radius: 50%;
+  background: #f5f5f5;
+}
+
+.glm-translation-close:hover {
+  background: #e0e0e0;
+  color: #333;
+} 
