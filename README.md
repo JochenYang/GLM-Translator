@@ -37,7 +37,7 @@ GLM Translator 是一款简洁高效的浏览器划词翻译扩展，支持多�
 1. 克隆仓库
 
 ```bash
-git clone https://github.com/yourusername/GLM-Translator.git
+git clone https://github.com/JochenYang/GLM-Translator.git
 cd GLM-Translator
 ```
 
