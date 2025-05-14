@@ -75,15 +75,20 @@
           v-model="inputText"
           class="input-area"
           :placeholder="'请输入要翻译的文本...'"
-          maxlength="500"
+          maxlength="5000"
           @input="handleInput"
+          ref="inputTextarea"
         ></textarea>
-        <div class="char-count">{{ inputText.length }}/500</div>
+        <div class="char-count">{{ inputText.length }}/5000</div>
       </div>
 
       <!-- 翻译结果区域 - 默认显示 -->
       <div class="translation-area">
-        <div class="result-area" :class="{ empty: !translatedText }">
+        <div
+          class="result-area"
+          :class="{ empty: !translatedText }"
+          ref="resultArea"
+        >
           <div v-if="translatedText" class="result-text">
             {{ translatedText }}
           </div>
@@ -105,7 +110,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { allLanguages } from "../common/languages";
 
 export default {
@@ -116,6 +121,8 @@ export default {
     const inputText = ref("");
     const translatedText = ref("");
     const languages = ref(allLanguages);
+    const inputTextarea = ref(null);
+    const resultArea = ref(null);
 
     // 拼音首字母映射
     const pinyinMap = {
@@ -301,6 +308,28 @@ export default {
       }
     });
 
+    // 监听输入文本变化，自动调整高度
+    watch(inputText, () => {
+      // 使用nextTick确保DOM已更新后再调整高度
+      nextTick(() => {
+        // 使用防抖处理以降低频繁调整的性能消耗
+        if (!debounceResize) {
+          debounceResize = createDebounce(autoResize, 50);
+        }
+        debounceResize();
+      });
+    });
+
+    // 监听翻译结果变化，自动调整结果区域高度
+    watch(translatedText, () => {
+      nextTick(() => {
+        adjustResultHeight();
+      });
+    });
+
+    // 创建防抖变量
+    let debounceResize = null;
+
     // 翻译处理函数
     async function handleTranslate() {
       try {
@@ -338,8 +367,59 @@ export default {
       };
     }
 
+    // 自动调整输入框高度
+    const autoResize = () => {
+      if (!inputTextarea.value) return;
+
+      // 使用requestAnimationFrame确保视觉更新流畅
+      requestAnimationFrame(() => {
+        // 重置高度以便正确计算
+        inputTextarea.value.style.height = "auto";
+
+        // 获取内容高度
+        const scrollHeight = inputTextarea.value.scrollHeight;
+
+        // 根据内容设置高度，确保不超过最大高度
+        const newHeight = Math.min(scrollHeight + 5, 500);
+        inputTextarea.value.style.height = `${newHeight}px`;
+
+        // 如果输入区域调整了高度，同时更新结果区域高度
+        if (resultArea.value && newHeight >= 120) {
+          resultArea.value.style.minHeight = `${newHeight}px`;
+        }
+      });
+    };
+
+    // 自动调整结果区域高度
+    const adjustResultHeight = () => {
+      if (!resultArea.value) return;
+
+      // 使用requestAnimationFrame确保视觉更新流畅
+      requestAnimationFrame(() => {
+        // 重置可能的内联高度样式
+        resultArea.value.style.height = "";
+
+        // 获取实际内容高度
+        const contentHeight = resultArea.value.scrollHeight;
+
+        // 如果内容高度大于最小高度，设置实际高度
+        if (contentHeight > 120) {
+          // 设置动画目标高度（最大不超过max-height）
+          const targetHeight = Math.min(contentHeight, 500);
+          resultArea.value.style.height = `${targetHeight}px`;
+        }
+      });
+    };
+
     // 修改翻译处理函数
     const handleInput = createDebounce(async () => {
+      // 确保输入区域高度自适应
+      if (debounceResize) {
+        debounceResize();
+      } else {
+        autoResize();
+      }
+
       if (!inputText.value.trim()) {
         translatedText.value = "";
         return;
@@ -373,13 +453,37 @@ export default {
         if (response && response.translatedText) {
           translatedText.value = response.translatedText;
         } else if (response && response.error) {
-          translatedText.value = `翻译失败: ${response.error}`;
+          // 处理特定类型的错误信息
+          if (
+            response.error.includes("无法完成翻译") ||
+            response.error.includes("不适当") ||
+            response.error.includes("色情") ||
+            response.error.includes("违反公序良俗")
+          ) {
+            translatedText.value =
+              "翻译服务遇到了问题，请尝试修改文本内容后重新翻译。";
+          } else {
+            translatedText.value = `翻译失败: ${response.error}`;
+          }
         } else {
           translatedText.value = "翻译失败: 未知错误";
         }
       } catch (err) {
         console.error("翻译错误:", err);
-        translatedText.value = "翻译失败: " + (err.message || "未知错误");
+
+        // 提供更友好的错误信息
+        const errorMsg = err.message || "未知错误";
+        if (
+          errorMsg.includes("无法完成翻译") ||
+          errorMsg.includes("不适当") ||
+          errorMsg.includes("色情") ||
+          errorMsg.includes("违反公序良俗")
+        ) {
+          translatedText.value =
+            "翻译服务遇到了问题，请尝试修改文本内容后重新翻译。";
+        } else {
+          translatedText.value = "翻译失败: " + errorMsg;
+        }
       }
     }, 500);
 
@@ -417,6 +521,40 @@ export default {
           sourceLang.value = settings.general.sourceLang || "auto";
           targetLang.value = settings.general.targetLang || "zh";
         }
+
+        // 确保输入框和结果区域高度自适应初始内容
+        nextTick(() => {
+          // 延迟一点点时间确保DOM完全就绪
+          setTimeout(() => {
+            if (inputText.value) {
+              autoResize();
+            }
+            if (translatedText.value) {
+              adjustResultHeight();
+            }
+
+            // 给输入框添加事件监听，优化交互体验
+            if (inputTextarea.value) {
+              // 监听resize事件，确保拖动调整大小时实时响应
+              const resizeObserver = new ResizeObserver(() => {
+                // 这里不使用防抖，确保实时响应
+                if (resultArea.value) {
+                  // 保持结果区域与输入区域高度一致
+                  const height = inputTextarea.value.offsetHeight;
+                  if (height >= 120 && height <= 500) {
+                    resultArea.value.style.minHeight = `${height}px`;
+                  }
+                }
+              });
+
+              resizeObserver.observe(inputTextarea.value);
+
+              // 其他事件
+              inputTextarea.value.addEventListener("focus", autoResize);
+              inputTextarea.value.addEventListener("blur", autoResize);
+            }
+          }, 50);
+        });
       } catch (error) {
         console.error("加载设置失败:", error);
       }
@@ -434,6 +572,8 @@ export default {
       handleInput,
       copyText,
       openSettings,
+      inputTextarea,
+      resultArea,
     };
   },
 };
@@ -441,7 +581,9 @@ export default {
 
 <style scoped>
 .popup-container {
-  min-width: 380px; /* 恢复原来的宽度 */
+  min-width: 500px; /* 增加最小宽度 */
+  max-width: 800px; /* 增加最大宽度 */
+  width: auto; /* 允许宽度自适应 */
 }
 
 .language-select {
@@ -490,16 +632,18 @@ export default {
 
 .input-area {
   width: 100%;
-  height: 120px;
+  min-height: 120px;
+  max-height: 500px; /* 增加最大高度，可容纳更多文本 */
   padding: 12px;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   font-size: 14px;
   line-height: 1.5;
   color: #1a202c;
-  resize: none;
+  resize: vertical;
   outline: none;
-  transition: all 0.2s;
+  transition: border-color 0.2s;
+  overflow-y: auto;
 }
 
 .input-area:focus {
@@ -518,7 +662,7 @@ export default {
 .result-area {
   width: 100%;
   min-height: 120px;
-  max-height: 240px;
+  max-height: 500px; /* 增加最大高度，与输入区域一致 */
   overflow-y: auto;
   padding: 12px;
   border: 1px solid #e2e8f0;

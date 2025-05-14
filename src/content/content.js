@@ -389,6 +389,66 @@ async function translateText(text) {
       return;
     }
 
+    // 获取 iframe 文档对象
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+
+    // 先添加样式到iframe
+    doc.head.innerHTML = `
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 15px;
+          background-color: white;
+          color: #333;
+          font-size: 14px;
+          line-height: 1.5;
+        }
+        .original {
+          color: #666;
+          margin-bottom: 10px;
+          word-break: break-word;
+        }
+        .divider {
+          height: 1px;
+          background: #eee;
+          margin: 10px 0;
+        }
+        .result {
+          color: #1a202c;
+          word-break: break-word;
+        }
+        .error {
+          color: #e53e3e;
+          padding: 10px;
+          border-radius: 4px;
+          background-color: #fff5f5;
+          border: 1px solid #fed7d7;
+          margin: 10px 0;
+          font-size: 14px;
+          text-align: center;
+        }
+        .message {
+          padding: 10px;
+          border-radius: 4px;
+          background-color: #f0f9ff;
+          border: 1px solid #bee3f8;
+          margin: 10px 0;
+          font-size: 14px;
+          text-align: center;
+          color: #2c5282;
+        }
+      </style>
+    `;
+
+    // 显示加载状态
+    doc.body.innerHTML = `
+      <div class="message">翻译中...</div>
+    `;
+
+    // 调整iframe高度以适应加载消息
+    adjustIframeHeight(iframe);
+
     // 获取设置中的语言
     const result = await chrome.storage.sync.get([
       "general",
@@ -409,17 +469,31 @@ async function translateText(text) {
     });
 
     // 更新 iframe 内容
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-
     if (response && response.translatedText) {
       doc.body.innerHTML = `
         <div class="original">${text}</div>
         <div class="divider"></div>
         <div class="result">${response.translatedText}</div>
       `;
+    } else if (response && response.error) {
+      // 处理特定类型的错误信息，提供更友好的反馈
+      let errorMessage = response.error;
+      // 检查是否包含敏感内容相关的错误信息
+      if (
+        response.error.includes("无法完成翻译") ||
+        response.error.includes("不适当") ||
+        response.error.includes("色情") ||
+        response.error.includes("违反公序良俗")
+      ) {
+        errorMessage = "翻译服务遇到了问题，请尝试修改文本内容后重新翻译。";
+      }
+
+      doc.body.innerHTML = `
+        <div class="error">${errorMessage}</div>
+      `;
     } else {
       doc.body.innerHTML = `
-        <div class="error">翻译失败: ${response?.error || "未知错误"}</div>
+        <div class="error">翻译失败: 未知错误</div>
       `;
     }
 
@@ -431,15 +505,27 @@ async function translateText(text) {
   } catch (error) {
     console.error("翻译请求错误:", error);
 
-    // 尝试更新错误信息
+    // 尝试更新错误信息，提供更友好的反馈
     try {
       const container = document.querySelector("#glm-translator-container");
       if (container) {
         const iframe = container.querySelector("#glm-translator-iframe");
         if (iframe) {
           const doc = iframe.contentDocument || iframe.contentWindow.document;
+
+          // 检查是否包含敏感内容相关的错误信息
+          let errorMessage = error.message || "未知错误";
+          if (
+            errorMessage.includes("无法完成翻译") ||
+            errorMessage.includes("不适当") ||
+            errorMessage.includes("色情") ||
+            errorMessage.includes("违反公序良俗")
+          ) {
+            errorMessage = "翻译服务遇到了问题，请尝试修改文本内容后重新翻译。";
+          }
+
           doc.body.innerHTML = `
-            <div class="error">翻译失败: ${error.message || "未知错误"}</div>
+            <div class="error">${errorMessage}</div>
           `;
           adjustIframeHeight(iframe);
         }
