@@ -1,32 +1,309 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 flex flex-col">
+    <!-- 顶部导航栏 -->
     <header class="bg-white shadow-sm">
-      <div class="max-w-3xl mx-auto px-4 py-4">
-        <h1 class="text-xl font-semibold text-gray-900">GLM Translator 设置</h1>
+      <div
+        class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center"
+      >
+        <div class="flex items-center">
+          <!-- Logo -->
+          <img :src="logoUrl" alt="GLM Translator" class="h-8 w-auto mr-3" />
+          <h1 class="text-xl font-semibold text-gray-900">
+            GLM Translator 设置
+          </h1>
+        </div>
+        <div>
+          <a
+            @click="showDocumentation"
+            class="text-blue-600 hover:text-blue-800 flex items-center cursor-pointer"
+          >
+            <svg
+              class="w-5 h-5 mr-1"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
+            </svg>
+            使用文档
+          </a>
+        </div>
       </div>
     </header>
 
-    <main class="max-w-3xl mx-auto px-4 py-6">
-      <div class="bg-white rounded-lg shadow">
-        <!-- API服务商选择 -->
-        <div class="border-b border-gray-200">
-          <nav class="flex -mb-px overflow-x-auto" aria-label="Tabs">
+    <!-- 主体内容：左侧菜单 + 右侧设置区域 -->
+    <main class="flex-1 flex max-w-7xl mx-auto w-full">
+      <!-- 左侧菜单 -->
+      <div class="w-64 bg-white shadow-sm border-r border-gray-200">
+        <nav class="py-4 flex flex-col h-full">
+          <div
+            class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider"
+          >
+            基本设置
+          </div>
+
+          <button
+            @click="activeSection = 'general'"
+            :class="[
+              activeSection === 'general'
+                ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+                : 'text-gray-700 hover:bg-gray-100',
+              'px-4 py-3 text-sm font-medium flex items-center',
+            ]"
+          >
+            <svg
+              class="w-5 h-5 mr-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              ></path>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              ></path>
+            </svg>
+            通用设置
+          </button>
+
+          <button
+            @click="activeSection = 'selection'"
+            :class="[
+              activeSection === 'selection'
+                ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+                : 'text-gray-700 hover:bg-gray-100',
+              'px-4 py-3 text-sm font-medium flex items-center',
+            ]"
+          >
+            <svg
+              class="w-5 h-5 mr-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              ></path>
+            </svg>
+            划词翻译
+          </button>
+
+          <button
+            @click="activeSection = 'shortcut'"
+            :class="[
+              activeSection === 'shortcut'
+                ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+                : 'text-gray-700 hover:bg-gray-100',
+              'px-4 py-3 text-sm font-medium flex items-center',
+            ]"
+          >
+            <svg
+              class="w-5 h-5 mr-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4v16m8-8H4"
+              ></path>
+            </svg>
+            快捷键设置
+          </button>
+
+          <div
+            class="px-4 py-2 mt-4 text-xs font-semibold text-gray-500 uppercase tracking-wider"
+          >
+            API管理
+          </div>
+
+          <button
+            @click="activeSection = 'api'"
+            :class="[
+              activeSection === 'api'
+                ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+                : 'text-gray-700 hover:bg-gray-100',
+              'px-4 py-3 text-sm font-medium flex items-center',
+            ]"
+          >
+            <svg
+              class="w-5 h-5 mr-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"
+              ></path>
+            </svg>
+            API配置
+          </button>
+        </nav>
+      </div>
+
+      <!-- 右侧设置区域 -->
+      <div class="flex-1 py-6 px-6 bg-white ml-0 border-l border-gray-200">
+        <!-- 通用设置 -->
+        <div v-if="activeSection === 'general'" class="space-y-6">
+          <h2 class="text-lg font-medium text-gray-900 mb-4">通用设置</h2>
+
+          <!-- 语言设置 -->
+          <div class="space-y-4">
+            <h3 class="text-sm font-medium text-gray-900">默认语言</h3>
+
+            <!-- 源语言 -->
+            <div class="form-group">
+              <label class="form-label">源语言</label>
+              <select v-model="configs.general.sourceLang" class="form-select">
+                <option value="auto">自动检测</option>
+                <optgroup
+                  v-for="(langs, letter) in groupedLanguages"
+                  :key="letter"
+                  :label="letter"
+                >
+                  <option
+                    v-for="(name, code) in filteredSourceLanguages(langs)"
+                    :key="code"
+                    :value="code"
+                  >
+                    {{ name }}
+                  </option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- 目标语言 -->
+            <div class="form-group">
+              <label class="form-label">目标语言</label>
+              <select v-model="configs.general.targetLang" class="form-select">
+                <optgroup
+                  v-for="(langs, letter) in targetLanguageGroups"
+                  :key="letter"
+                  :label="letter"
+                >
+                  <option
+                    v-for="(name, code) in langs"
+                    :key="code"
+                    :value="code"
+                  >
+                    {{ name }}
+                  </option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 划词翻译设置 -->
+        <div v-if="activeSection === 'selection'" class="space-y-6">
+          <h2 class="text-lg font-medium text-gray-900 mb-4">划词翻译</h2>
+
+          <!-- 启用划词翻译 -->
+          <div class="flex items-center justify-between">
+            <div>
+              <label class="text-sm font-medium text-gray-700"
+                >启用划词翻译</label
+              >
+              <p class="text-sm text-gray-500">选中文本后自动显示翻译结果</p>
+            </div>
             <button
-              v-for="provider in savedApis"
-              :key="provider.id"
-              @click="selectApiProvider(provider.id)"
+              @click="toggleSelection"
               :class="[
-                selectedApiId === provider.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-                'whitespace-nowrap py-4 px-4 text-center border-b-2 font-medium text-sm',
+                configs.general.enableSelection ? 'bg-blue-600' : 'bg-gray-200',
+                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
               ]"
             >
-              {{ provider.name }}
+              <span
+                :class="[
+                  configs.general.enableSelection
+                    ? 'translate-x-5'
+                    : 'translate-x-0',
+                  'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                ]"
+              />
             </button>
+          </div>
+
+          <!-- 触发方式 -->
+          <div v-if="configs.general.enableSelection" class="space-y-2">
+            <label class="text-sm font-medium text-gray-700">触发方式</label>
+            <div class="space-y-2">
+              <label class="inline-flex items-center">
+                <input
+                  type="radio"
+                  v-model="configs.general.selectionTrigger"
+                  value="instant"
+                  class="form-radio"
+                />
+                <span class="ml-2 text-sm text-gray-700">选中后立即显示</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input
+                  type="radio"
+                  v-model="configs.general.selectionTrigger"
+                  value="icon"
+                  class="form-radio"
+                />
+                <span class="ml-2 text-sm text-gray-700"
+                  >显示翻译图标，点击后翻译</span
+                >
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 快捷键设置 -->
+        <div v-if="activeSection === 'shortcut'" class="space-y-6">
+          <h2 class="text-lg font-medium text-gray-900 mb-4">快捷键设置</h2>
+
+          <div class="form-group">
+            <label class="form-label">快捷键</label>
+            <div class="flex items-center space-x-2">
+              <input
+                type="text"
+                v-model="configs.general.shortcut"
+                class="form-input"
+                placeholder="例如：Alt+T"
+                @keydown="handleShortcutInput"
+                readonly
+              />
+              <button
+                @click="clearShortcut"
+                class="text-sm text-gray-500 hover:text-gray-700"
+              >
+                清除
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- API管理 -->
+        <div v-if="activeSection === 'api'" class="space-y-6">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-medium text-gray-900">API配置</h2>
             <button
               @click="showAddApiModal = true"
-              class="whitespace-nowrap py-4 px-4 text-center border-b-2 font-medium text-sm text-green-600 border-transparent hover:border-green-300"
+              class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
             >
               <svg
                 class="w-4 h-4 inline-block mr-1"
@@ -43,165 +320,33 @@
               </svg>
               添加API
             </button>
-          </nav>
-        </div>
+          </div>
 
-        <!-- 配置表单 -->
-        <div class="p-6 space-y-6">
-          <!-- 通用设置 -->
-          <div class="bg-white rounded-lg shadow mb-6">
-            <div class="px-6 py-4 border-b border-gray-200">
-              <h2 class="text-lg font-medium text-gray-900">通用设置</h2>
-            </div>
-
-            <div class="p-6 space-y-6">
-              <!-- 语言设置 -->
-              <div class="space-y-4">
-                <h3 class="text-sm font-medium text-gray-900">默认语言</h3>
-
-                <!-- 源语言 -->
-                <div class="form-group">
-                  <label class="form-label">源语言</label>
-                  <select
-                    v-model="configs.general.sourceLang"
-                    class="form-select"
-                  >
-                    <option value="auto">自动检测</option>
-                    <optgroup
-                      v-for="(langs, letter) in groupedLanguages"
-                      :key="letter"
-                      :label="letter"
-                    >
-                      <option
-                        v-for="(name, code) in filteredSourceLanguages(langs)"
-                        :key="code"
-                        :value="code"
-                      >
-                        {{ name }}
-                      </option>
-                    </optgroup>
-                  </select>
-                </div>
-
-                <!-- 目标语言 -->
-                <div class="form-group">
-                  <label class="form-label">目标语言</label>
-                  <select
-                    v-model="configs.general.targetLang"
-                    class="form-select"
-                  >
-                    <optgroup
-                      v-for="(langs, letter) in targetLanguageGroups"
-                      :key="letter"
-                      :label="letter"
-                    >
-                      <option
-                        v-for="(name, code) in langs"
-                        :key="code"
-                        :value="code"
-                      >
-                        {{ name }}
-                      </option>
-                    </optgroup>
-                  </select>
-                </div>
-              </div>
-
-              <!-- 划词翻译设置 -->
-              <div class="space-y-4">
-                <h3 class="text-sm font-medium text-gray-900">划词翻译</h3>
-
-                <!-- 启用划词翻译 -->
-                <div class="flex items-center justify-between">
-                  <div>
-                    <label class="text-sm font-medium text-gray-700"
-                      >启用划词翻译</label
-                    >
-                    <p class="text-sm text-gray-500">
-                      选中文本后自动显示翻译结果
-                    </p>
-                  </div>
-                  <button
-                    @click="toggleSelection"
-                    :class="[
-                      configs.general.enableSelection
-                        ? 'bg-blue-600'
-                        : 'bg-gray-200',
-                      'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-                    ]"
-                  >
-                    <span
-                      :class="[
-                        configs.general.enableSelection
-                          ? 'translate-x-5'
-                          : 'translate-x-0',
-                        'pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                      ]"
-                    />
-                  </button>
-                </div>
-
-                <!-- 触发方式 -->
-                <div v-if="configs.general.enableSelection" class="space-y-2">
-                  <label class="text-sm font-medium text-gray-700"
-                    >触发方式</label
-                  >
-                  <div class="space-y-2">
-                    <label class="inline-flex items-center">
-                      <input
-                        type="radio"
-                        v-model="configs.general.selectionTrigger"
-                        value="instant"
-                        class="form-radio"
-                      />
-                      <span class="ml-2 text-sm text-gray-700"
-                        >选中后立即显示</span
-                      >
-                    </label>
-                    <label class="inline-flex items-center">
-                      <input
-                        type="radio"
-                        v-model="configs.general.selectionTrigger"
-                        value="icon"
-                        class="form-radio"
-                      />
-                      <span class="ml-2 text-sm text-gray-700"
-                        >显示翻译图标，点击后翻译</span
-                      >
-                    </label>
-                  </div>
-                </div>
-
-                <!-- 快捷键设置 -->
-                <div class="form-group">
-                  <label class="form-label">快捷键</label>
-                  <div class="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      v-model="configs.general.shortcut"
-                      class="form-input"
-                      placeholder="例如：Alt+T"
-                      @keydown="handleShortcutInput"
-                      readonly
-                    />
-                    <button
-                      @click="clearShortcut"
-                      class="text-sm text-gray-500 hover:text-gray-700"
-                    >
-                      清除
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <!-- API选项卡 -->
+          <div class="border-b border-gray-200">
+            <nav class="flex -mb-px overflow-x-auto" aria-label="Tabs">
+              <button
+                v-for="provider in savedApis"
+                :key="provider.id"
+                @click="selectApiProvider(provider.id)"
+                :class="[
+                  selectedApiId === provider.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                  'whitespace-nowrap py-4 px-4 text-center border-b-2 font-medium text-sm',
+                ]"
+              >
+                {{ provider.name }}
+              </button>
+            </nav>
           </div>
 
           <!-- 当前选中API设置 -->
-          <div v-if="selectedApiId && currentApiConfig" class="space-y-6">
+          <div v-if="selectedApiId && currentApiConfig" class="space-y-6 mt-6">
             <div class="flex justify-between items-center">
-              <h2 class="text-lg font-medium text-gray-900">
+              <h3 class="text-md font-medium text-gray-900">
                 {{ currentApiConfig.name }} 设置
-              </h2>
+              </h3>
               <div class="flex space-x-2">
                 <button
                   @click="confirmDeleteApi"
@@ -250,37 +395,37 @@
               />
             </div>
           </div>
+        </div>
 
-          <!-- 保存按钮 -->
-          <div class="mt-8">
-            <button
-              @click="saveSettings"
-              class="save-button"
-              :disabled="isSaving"
+        <!-- 保存按钮，始终位于设置区域底部 -->
+        <div class="mt-8">
+          <button
+            @click="saveSettings"
+            class="save-button"
+            :disabled="isSaving"
+          >
+            <svg
+              v-if="isSaving"
+              class="animate-spin -ml-1 mr-2 h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
             >
-              <svg
-                v-if="isSaving"
-                class="animate-spin -ml-1 mr-2 h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                />
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              {{ isSaving ? "保存中..." : "保存设置" }}
-            </button>
-          </div>
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            {{ isSaving ? "保存中..." : "保存设置" }}
+          </button>
         </div>
       </div>
     </main>
@@ -425,12 +570,113 @@
         </div>
       </div>
     </div>
+
+    <!-- 文档模态框 -->
+    <div
+      v-if="showDocModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50"
+    >
+      <div
+        class="relative bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+      >
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">
+          GLM Translator 使用文档
+        </h2>
+
+        <div class="space-y-6 text-gray-700">
+          <section>
+            <h3 class="text-xl font-semibold mb-3">简介</h3>
+            <p>
+              GLM Translator
+              是一款简洁高效的网页翻译工具，支持多种语言翻译，可以通过划词、右键菜单等方式快速翻译文本。本扩展提供了便捷的接口配置，用户通过填写自己的API密钥即可享受高质量的翻译服务。
+            </p>
+          </section>
+
+          <section>
+            <h3 class="text-xl font-semibold mb-3">功能特点</h3>
+            <ul class="list-disc pl-5 space-y-2">
+              <li>多API支持：支持多种大模型翻译服务，用户可自行配置</li>
+              <li>划词翻译：选中文本后立即翻译或显示翻译图标</li>
+              <li>右键菜单：通过右键菜单快捷翻译选中文本</li>
+              <li>多语言支持：支持多种语言互译</li>
+              <li>API管理：支持添加、编辑多种翻译服务API配置</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 class="text-xl font-semibold mb-3">使用指南</h3>
+
+            <h4 class="text-lg font-medium mt-4 mb-2">基本设置</h4>
+            <p>在扩展设置页面，您可以配置以下基本选项：</p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li>源语言和目标语言：设置默认翻译语言</li>
+              <li>划词翻译：启用或禁用划词翻译功能</li>
+              <li>触发方式：选择翻译的触发方式（立即或点击图标）</li>
+              <li>快捷键：设置翻译快捷键</li>
+            </ul>
+
+            <h4 class="text-lg font-medium mt-4 mb-2">API配置</h4>
+            <p>GLM Translator 支持多种API配置，您可以：</p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li>添加新API：支持多种预设服务或自定义API</li>
+              <li>编辑API设置：包括API地址、密钥和模型名称</li>
+              <li>复制或删除API配置</li>
+            </ul>
+            <p class="text-blue-600 font-medium">
+              注意：修改设置后，请点击"保存设置"按钮使更改生效。
+            </p>
+          </section>
+
+          <section>
+            <h3 class="text-xl font-semibold mb-3">常见问题</h3>
+            <div class="space-y-3">
+              <div>
+                <h4 class="font-medium">翻译不工作？</h4>
+                <p>
+                  请检查您的API配置是否正确，特别是API密钥是否有效。请确保您使用的服务账户有足够的额度或权限。
+                </p>
+              </div>
+              <div>
+                <h4 class="font-medium">如何更改翻译语言？</h4>
+                <p>在扩展弹出窗口或设置页面中，您可以选择源语言和目标语言。</p>
+              </div>
+              <div>
+                <h4 class="font-medium">如何添加新的API服务？</h4>
+                <p>
+                  在API配置选项卡中点击"添加API"按钮，然后选择预设服务或输入自定义API信息。
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <button
+          @click="showDocModal = false"
+          class="absolute top-3 right-3 text-gray-400 hover:text-gray-500"
+        >
+          <svg
+            class="h-6 w-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { ref, reactive, onMounted, computed } from "vue";
 import { allLanguages } from "../common/languages";
+import { logoUrl } from "../assets/logo.js";
 
 export default {
   name: "Options",
@@ -441,6 +687,8 @@ export default {
     const showAddApiModal = ref(false);
     const showDeleteConfirmModal = ref(false);
     const selectedPresetApi = ref("");
+    const activeSection = ref("general"); // 新增：当前激活的设置项
+    const showDocModal = ref(false);
 
     // 预设API服务商
     const presetApiProviders = [
@@ -921,11 +1169,18 @@ export default {
       configs.general.shortcut = "";
     };
 
+    // 显示文档模态框
+    const showDocumentation = () => {
+      showDocModal.value = true;
+    };
+
     onMounted(() => {
       loadSettings();
     });
 
     return {
+      logoUrl,
+      activeSection,
       savedApis,
       selectedApiId,
       currentApiConfig,
@@ -952,6 +1207,8 @@ export default {
       duplicateCurrentApi,
       confirmDeleteApi,
       deleteCurrentApi,
+      showDocModal,
+      showDocumentation,
     };
   },
 };
@@ -1034,5 +1291,24 @@ export default {
 
 .form-radio {
   @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300;
+}
+
+/* 响应式设计，在小屏幕上调整布局 */
+@media (max-width: 768px) {
+  main {
+    @apply flex-col;
+  }
+
+  .w-64 {
+    @apply w-full border-r-0 border-b border-gray-200;
+  }
+
+  .flex-1.py-6.px-6 {
+    @apply ml-0 mt-4;
+  }
+
+  .max-w-7xl {
+    @apply px-4;
+  }
 }
 </style>
