@@ -49,16 +49,38 @@ export async function setCurrentApi(apiName) {
 
 // 获取当前API配置
 async function getApiConfig() {
-  const { selectedProvider, glmConfig, customConfig } =
-    await chrome.storage.sync.get([
-      "selectedProvider",
-      "glmConfig",
-      "customConfig",
-    ]);
+  const settings = await chrome.storage.sync.get([
+    "selectedProvider",
+    "selectedApiId",
+    "savedApis",
+    "glmConfig",
+    "customConfig",
+  ]);
 
+  // 检查是否有新版API配置
+  if (
+    settings.savedApis &&
+    settings.savedApis.length > 0 &&
+    settings.selectedApiId
+  ) {
+    const selectedApi = settings.savedApis.find(
+      (api) => api.id === settings.selectedApiId
+    );
+    if (selectedApi) {
+      return {
+        provider: "custom", // 所有API都使用custom方式处理
+        config: selectedApi,
+      };
+    }
+  }
+
+  // 兼容旧版配置
   return {
-    provider: selectedProvider || "google",
-    config: selectedProvider === "glm" ? glmConfig : customConfig,
+    provider: settings.selectedProvider || "glm",
+    config:
+      settings.selectedProvider === "glm"
+        ? settings.glmConfig
+        : settings.customConfig,
   };
 }
 

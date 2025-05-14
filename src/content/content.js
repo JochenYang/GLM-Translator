@@ -183,7 +183,7 @@ function showPopup(x, y) {
     borderRadius: "8px",
     boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
     minWidth: "250px",
-    maxWidth: "400px",
+    maxWidth: "800px",
     border: "none",
     overflow: "hidden",
     padding: "0",
@@ -263,6 +263,7 @@ function showPopup(x, y) {
           .original {
             color: #666;
             margin-bottom: 8px;
+            word-break: break-word;
           }
           .divider {
             height: 1px;
@@ -271,6 +272,7 @@ function showPopup(x, y) {
           }
           .result {
             color: #333;
+            word-break: break-word;
           }
         </style>
       </head>
@@ -283,6 +285,21 @@ function showPopup(x, y) {
 
     // 调整 iframe 高度
     adjustIframeHeight(iframe);
+
+    // 添加ResizeObserver实时监听内容变化
+    try {
+      if ("ResizeObserver" in window) {
+        const resizeObserver = new ResizeObserver(() => {
+          adjustIframeHeight(iframe);
+          // 确保弹窗在视图内
+          keepPopupInView(container);
+        });
+
+        resizeObserver.observe(doc.body);
+      }
+    } catch (error) {
+      console.error("初始化ResizeObserver失败:", error);
+    }
   };
 
   // 确保弹窗在视口内
@@ -302,8 +319,22 @@ function adjustIframeHeight(iframe) {
     const doc = iframe.contentDocument || iframe.contentWindow.document;
     const body = doc.body;
 
+    // 计算内容高度
     const height = body.scrollHeight;
-    iframe.style.height = height + "px";
+
+    // 设置最大高度限制，与Popup.vue保持一致
+    const maxHeight = 500;
+
+    if (height > maxHeight) {
+      // 如果内容超过最大高度，启用滚动
+      iframe.style.height = maxHeight + "px";
+      body.style.overflow = "auto";
+      body.style.maxHeight = maxHeight + "px";
+    } else {
+      // 否则自适应内容高度
+      iframe.style.height = height + "px";
+      body.style.overflow = "hidden";
+    }
   } catch (error) {
     console.error("调整 iframe 高度错误:", error);
   }
@@ -356,7 +387,7 @@ function handleIconClick() {
   let popupX = Math.max(20, Math.min(rect.left, window.innerWidth - 300));
   let popupY = rect.bottom + 8;
   // 如果底部空间不足，显示在上方
-  const popupHeight = 120; // 你可以根据实际弹窗高度调整
+  const popupHeight = 200; // 增加默认高度估计，从120px增加到200px
   if (popupY + popupHeight > window.innerHeight - 20) {
     popupY = rect.top - popupHeight - 8;
     if (popupY < 20) popupY = 20;
@@ -408,6 +439,7 @@ async function translateText(text) {
           color: #666;
           margin-bottom: 10px;
           word-break: break-word;
+          white-space: pre-wrap;
         }
         .divider {
           height: 1px;
@@ -417,6 +449,7 @@ async function translateText(text) {
         .result {
           color: #1a202c;
           word-break: break-word;
+          white-space: pre-wrap;
         }
         .error {
           color: #e53e3e;
