@@ -7,6 +7,7 @@ import { translateText, addTranslationHistory } from "../services/translator";
 function init() {
   setupContextMenu();
   setupMessageListeners();
+  setupCommandListeners();
 }
 
 // 设置右键菜单
@@ -40,6 +41,25 @@ function setupContextMenu() {
   } catch (error) {
     console.error("创建右键菜单出错:", error);
   }
+}
+
+// 设置命令监听
+function setupCommandListeners() {
+  chrome.commands.onCommand.addListener((command, tab) => {
+    if (command === "translate-selection" && tab && tab.id) {
+      chrome.tabs.sendMessage(
+        tab.id,
+        {
+          action: "contextMenuTranslate",
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error("发送命令消息失败:", chrome.runtime.lastError);
+          }
+        }
+      );
+    }
+  });
 }
 
 // 设置消息监听

@@ -77,14 +77,29 @@ function init() {
               return true;
             }
             const rect = range.getBoundingClientRect();
-            // 统一定位逻辑
+
+            // 使用改进的定位逻辑
+            let iconX, iconY;
+
+            // 检查选区尺寸是否合理
+            if (rect.width < 5 || rect.height < 5) {
+              // 使用更可靠的计算方法
+              iconX = rect.left + rect.width / 2;
+              iconY = rect.bottom + 8;
+            } else {
+              // 正常情况下使用选区中间位置
+              iconX = rect.left + rect.width / 2;
+              iconY = rect.bottom + 8;
+            }
+
+            // 确保在可视范围内
             const popupX = Math.max(
               20,
-              Math.min(rect.left, window.innerWidth - 300)
+              Math.min(iconX, window.innerWidth - 300)
             );
             const popupY = Math.max(
               20,
-              Math.min(rect.bottom + 8, window.innerHeight - 150)
+              Math.min(iconY, window.innerHeight - 150)
             );
 
             showPopup(popupX, popupY);
@@ -111,6 +126,14 @@ function init() {
 
 // 处理选中文本
 async function handleSelection(event) {
+  // 避免处理从翻译窗口内部发生的选择
+  if (event && event.target) {
+    const container = document.querySelector("#glm-translator-container");
+    if (container && container.contains(event.target)) {
+      return;
+    }
+  }
+
   const selection = window.getSelection();
   const text = selection.toString().trim();
 
@@ -131,14 +154,31 @@ async function handleSelection(event) {
     const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
     if (!range) return;
 
+    // 获取选区的范围
     const rect = range.getBoundingClientRect();
 
-    // fixed 定位，直接用 rect.left/top
-    const popupX = Math.max(20, Math.min(rect.left, window.innerWidth - 300));
-    const popupY = Math.max(
-      20,
-      Math.min(rect.bottom + 8, window.innerHeight - 150)
-    );
+    // 如果选区范围太小（例如高度或宽度很小），使用更可靠的方法计算
+    let iconX, iconY;
+
+    if (rect.width < 5 || rect.height < 5) {
+      // 使用鼠标位置作为备选
+      if (event && event.clientX && event.clientY) {
+        iconX = event.clientX;
+        iconY = event.clientY + 20; // 在鼠标指针下方20px处显示
+      } else {
+        // 如果没有鼠标事件，回退到选区计算
+        iconX = rect.left + rect.width / 2;
+        iconY = rect.bottom + 8;
+      }
+    } else {
+      // 正常情况下使用选区位置
+      iconX = rect.left + rect.width / 2;
+      iconY = rect.bottom + 8;
+    }
+
+    // 确保在可视范围内
+    const popupX = Math.max(20, Math.min(iconX, window.innerWidth - 300));
+    const popupY = Math.max(20, Math.min(iconY, window.innerHeight - 150));
 
     if (settings.selectionTrigger === "instant") {
       showPopup(popupX, popupY);
@@ -158,6 +198,29 @@ function showIcon(x, y) {
   translationIcon.style.left = `${x}px`;
   translationIcon.style.top = `${y}px`;
   translationIcon.style.display = "flex";
+
+  // 确保图标在视图内
+  setTimeout(() => {
+    const rect = translationIcon.getBoundingClientRect();
+    const winWidth = window.innerWidth;
+    const winHeight = window.innerHeight;
+
+    if (rect.right > winWidth) {
+      translationIcon.style.left = `${winWidth - rect.width - 5}px`;
+    }
+
+    if (rect.bottom > winHeight) {
+      translationIcon.style.top = `${winHeight - rect.height - 5}px`;
+    }
+
+    if (rect.left < 0) {
+      translationIcon.style.left = "5px";
+    }
+
+    if (rect.top < 0) {
+      translationIcon.style.top = "5px";
+    }
+  }, 0);
 }
 
 // 隐藏翻译图标
@@ -383,9 +446,14 @@ function handleIconClick() {
   const range = selection.getRangeAt(0);
   const rect = range.getBoundingClientRect();
 
-  // 3. 计算弹窗位置（和"选中后立即显示"一致）
-  let popupX = Math.max(20, Math.min(rect.left, window.innerWidth - 300));
-  let popupY = rect.bottom + 8;
+  // 3. 使用改进的定位逻辑
+  let iconX = rect.left + rect.width / 2; // 选区中心点
+  let iconY = rect.bottom + 8;
+
+  // 确保在可视范围内
+  let popupX = Math.max(20, Math.min(iconX, window.innerWidth - 300));
+  let popupY = iconY;
+
   // 如果底部空间不足，显示在上方
   const popupHeight = 200; // 增加默认高度估计，从120px增加到200px
   if (popupY + popupHeight > window.innerHeight - 20) {
@@ -654,9 +722,62 @@ function addStyles() {
   document.head.appendChild(style);
 }
 
+// 添加快捷键监听
+function addKeyboardShortcutListener() {
+  document.addEventListener("keydown", async (event) => {
+    try {
+      // 构建当前按下的快捷键组合
+      const keys = [];
+      if (event.ctrlKey) keys.push("Ctrl");
+      if (event.altKey) keys.push("Alt");
+      if (event.shiftKey) keys.push("Shift");
+      if (event.key && !["Control", "Alt", "Shift"].includes(event.key)) {
+        keys.push(event.key.toUpperCase());
+      }
+
+      const pressedShortcut = keys.join("+");
+
+      // 如果匹配到固定的Alt+T快捷键
+      if (pressedShortcut === "Alt+T") {
+        const selection = window.getSelection();
+        const text = selection.toString().trim();
+
+        if (text) {
+          // 获取选区位置
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+
+          // 使用鼠标位置来定位弹窗
+          const mouseX = rect.left + rect.width / 2;
+          const mouseY = rect.bottom + 8;
+
+          // 确保在可视范围内 - 尽量靠近选择的文本
+          const viewportX = Math.min(mouseX, window.innerWidth - 320);
+          const viewportY = Math.min(mouseY, window.innerHeight - 200);
+
+          const popupX = Math.max(20, viewportX);
+          const popupY = Math.max(20, viewportY);
+
+          showPopup(popupX, popupY);
+          translateText(text);
+
+          // 阻止默认行为和事件传播
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }
+    } catch (error) {
+      console.error("处理快捷键错误:", error);
+    }
+  });
+}
+
 // 确保在页面加载完成后初始化
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);
 } else {
   init();
 }
+
+// 添加快捷键监听
+addKeyboardShortcutListener();

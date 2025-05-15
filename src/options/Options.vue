@@ -276,24 +276,20 @@
         <div v-if="activeSection === 'shortcut'" class="space-y-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">快捷键设置</h2>
 
-          <div class="form-group">
-            <label class="form-label">快捷键</label>
-            <div class="flex items-center space-x-2">
-              <input
-                type="text"
-                v-model="configs.general.shortcut"
-                class="form-input"
-                placeholder="例如：Alt+T"
-                @keydown="handleShortcutInput"
-                readonly
-              />
-              <button
-                @click="clearShortcut"
-                class="text-sm text-gray-500 hover:text-gray-700"
-              >
-                清除
-              </button>
-            </div>
+          <div class="bg-blue-50 p-4 rounded-md border border-blue-200">
+            <p class="text-sm text-blue-800">
+              <strong>提示：</strong> 扩展支持以下固定快捷键：
+            </p>
+            <ul class="list-disc ml-5 mt-2 text-sm text-blue-700">
+              <li>Alt+T - 打开翻译工具</li>
+              <li>Alt+G - 翻译选中的文本</li>
+            </ul>
+            <p class="text-sm text-blue-600 mt-2">
+              这些快捷键在扩展内部固定设置，无需额外配置。
+            </p>
+            <p class="text-sm text-blue-600 mt-1">
+              您可以在浏览器的扩展管理页面（chrome://extensions/shortcuts）中查看和修改这些快捷键。
+            </p>
           </div>
         </div>
 
@@ -598,6 +594,7 @@
               <li>多API支持：支持多种大模型翻译服务，用户可自行配置</li>
               <li>划词翻译：选中文本后立即翻译或显示翻译图标</li>
               <li>右键菜单：通过右键菜单快捷翻译选中文本</li>
+              <li>快捷键支持：支持Alt+T和Alt+G两个内置快捷键，便捷操作</li>
               <li>多语言支持：支持多种语言互译</li>
               <li>API管理：支持添加、编辑多种翻译服务API配置</li>
             </ul>
@@ -612,8 +609,17 @@
               <li>源语言和目标语言：设置默认翻译语言</li>
               <li>划词翻译：启用或禁用划词翻译功能</li>
               <li>触发方式：选择翻译的触发方式（立即或点击图标）</li>
-              <li>快捷键：设置翻译快捷键</li>
             </ul>
+
+            <h4 class="text-lg font-medium mt-4 mb-2">快捷键</h4>
+            <p>GLM Translator 提供以下固定快捷键：</p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>Alt+T</strong>：打开翻译工具</li>
+              <li><strong>Alt+G</strong>：翻译选中的文本</li>
+            </ul>
+            <p class="text-sm text-gray-600 mt-1">
+              这些快捷键在Chrome扩展中已固定设置，您可以在Chrome的扩展管理页面[edge同理]（chrome://extensions/shortcuts）中查看或修改。
+            </p>
 
             <h4 class="text-lg font-medium mt-4 mb-2">API配置</h4>
             <p>GLM Translator 支持多种API配置，您可以：</p>
@@ -644,6 +650,13 @@
                 <h4 class="font-medium">如何添加新的API服务？</h4>
                 <p>
                   在API配置选项卡中点击"添加API"按钮，然后选择预设服务或输入自定义API信息。
+                </p>
+              </div>
+              <div>
+                <h4 class="font-medium">如何使用快捷键？</h4>
+                <p>
+                  扩展提供两个内置快捷键：Alt+T可打开翻译工具，Alt+G可直接翻译选中文本。若快捷键无效，请检查是否与其他扩展或程序冲突，
+                  您可以在Chrome的扩展管理页面(chrome://extensions/shortcuts)中修改这些快捷键。
                 </p>
               </div>
             </div>
@@ -745,7 +758,6 @@ export default {
         targetLang: "zh",
         enableSelection: true,
         selectionTrigger: "icon",
-        shortcut: "Alt+T",
       },
     });
 
@@ -1149,25 +1161,7 @@ export default {
       configs.general.enableSelection = !configs.general.enableSelection;
     };
 
-    // 处理快捷键输入
-    const handleShortcutInput = (e) => {
-      e.preventDefault();
-      const keys = [];
-      if (e.ctrlKey) keys.push("Ctrl");
-      if (e.altKey) keys.push("Alt");
-      if (e.shiftKey) keys.push("Shift");
-      if (e.key && !["Control", "Alt", "Shift"].includes(e.key)) {
-        keys.push(e.key.toUpperCase());
-      }
-      if (keys.length > 0) {
-        configs.general.shortcut = keys.join("+");
-      }
-    };
-
-    // 清除快捷键
-    const clearShortcut = () => {
-      configs.general.shortcut = "";
-    };
+    // 快捷键相关函数已移除，使用固定快捷键
 
     // 显示文档模态框
     const showDocumentation = () => {
@@ -1193,8 +1187,6 @@ export default {
       isSaving,
       saveSettings,
       toggleSelection,
-      handleShortcutInput,
-      clearShortcut,
       groupedLanguages,
       targetLanguageGroups,
       filteredSourceLanguages,
