@@ -52,8 +52,8 @@ function init() {
 
     // 点击其他区域关闭图标
     document.addEventListener("mousedown", function (event) {
-      // 不要关闭弹窗，我们有专门的关闭按钮
-      if (!translationIcon.contains(event.target)) {
+      // 检查 translationIcon 是否存在且事件目标不在图标内
+      if (translationIcon && !translationIcon.contains(event.target)) {
         hideIcon();
       }
     });
@@ -151,81 +151,158 @@ async function handleSelection(event) {
 
     if (settings.enableSelection === false) return;
 
-    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-    if (!range) return;
-
-    // 获取选区的范围
-    const rect = range.getBoundingClientRect();
-
-    // 如果选区范围太小（例如高度或宽度很小），使用更可靠的方法计算
+    // 计算图标位置
     let iconX, iconY;
 
-    if (rect.width < 5 || rect.height < 5) {
-      // 使用鼠标位置作为备选
-      if (event && event.clientX && event.clientY) {
-        iconX = event.clientX;
-        iconY = event.clientY + 20; // 在鼠标指针下方20px处显示
-      } else {
-        // 如果没有鼠标事件，回退到选区计算
-        iconX = rect.left + rect.width / 2;
-        iconY = rect.bottom + 8;
-      }
+    if (event && event.clientX && event.clientY) {
+      // 优先使用鼠标位置
+      iconX = event.clientX;
+      iconY = event.clientY;
     } else {
-      // 正常情况下使用选区位置
+      // 如果没有鼠标事件，使用选区位置
+      const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      if (!range) return;
+
+      const rect = range.getBoundingClientRect();
       iconX = rect.left + rect.width / 2;
-      iconY = rect.bottom + 8;
+      iconY = rect.top + rect.height / 2;
     }
 
-    // 确保在可视范围内
-    const popupX = Math.max(20, Math.min(iconX, window.innerWidth - 300));
-    const popupY = Math.max(20, Math.min(iconY, window.innerHeight - 150));
+    // 调整图标位置，确保在视口内并且位于鼠标右侧
+    const iconSize = 32;
+    const margin = 10;
+    const offset = 15; // 与鼠标的水平偏移距离
+
+    // 水平位置调整
+    iconX = iconX + offset; // 默认在鼠标右侧
+    if (iconX + iconSize > window.innerWidth - margin) {
+      // 如果右侧空间不足，放在鼠标左侧
+      iconX = iconX - offset - iconSize - offset;
+    }
+
+    // 垂直位置调整（保持在鼠标水平线上）
+    iconY = Math.max(
+      margin,
+      Math.min(iconY - iconSize / 2, window.innerHeight - iconSize - margin)
+    );
 
     if (settings.selectionTrigger === "instant") {
-      showPopup(popupX, popupY);
+      showPopup(iconX, iconY);
       translateText(text);
     } else {
-      showIcon(popupX, popupY);
+      // 重新创建图标（如果不存在）
+      if (!translationIcon || !document.body.contains(translationIcon)) {
+        createTranslationIcon();
+      }
+      showIcon(iconX, iconY);
     }
   } catch (error) {
     console.error("处理选中文本错误:", error);
   }
 }
 
+// 创建翻译图标
+function createTranslationIcon() {
+  // 如果已存在，先移除
+  if (translationIcon) {
+    translationIcon.remove();
+  }
+
+  // 创建新图标
+  translationIcon = document.createElement("div");
+  translationIcon.className = "glm-translator-icon";
+  translationIcon.innerHTML = `
+    <img src="${chrome.runtime.getURL("icons/icon48.png")}" alt="翻译" />
+  `;
+
+  // 设置图标样式
+  Object.assign(translationIcon.style, {
+    position: "fixed",
+    zIndex: "2147483646",
+    width: "32px",
+    height: "32px",
+    backgroundColor: "white",
+    borderRadius: "50%",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+    cursor: "pointer",
+    display: "none",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.2s ease-out",
+    willChange: "transform, opacity", // 优化动画性能
+  });
+
+  // 添加点击事件
+  translationIcon.addEventListener("click", function (event) {
+    handleIconClick();
+    event.stopPropagation();
+  });
+
+  // 添加到页面
+  document.body.appendChild(translationIcon);
+
+  return translationIcon;
+}
+
 // 显示翻译图标
 function showIcon(x, y) {
-  if (!translationIcon) return;
+  // 如果图标不存在或不在DOM中，重新创建
+  if (!translationIcon || !document.body.contains(translationIcon)) {
+    createTranslationIcon();
+  }
+
+  // 应用位置
   translationIcon.style.position = "fixed";
   translationIcon.style.left = `${x}px`;
   translationIcon.style.top = `${y}px`;
   translationIcon.style.display = "flex";
+  translationIcon.style.opacity = "0";
+  translationIcon.style.transform = "scale(0.8)";
 
-  // 确保图标在视图内
-  setTimeout(() => {
-    const rect = translationIcon.getBoundingClientRect();
-    const winWidth = window.innerWidth;
-    const winHeight = window.innerHeight;
-
-    if (rect.right > winWidth) {
-      translationIcon.style.left = `${winWidth - rect.width - 5}px`;
-    }
-
-    if (rect.bottom > winHeight) {
-      translationIcon.style.top = `${winHeight - rect.height - 5}px`;
-    }
-
-    if (rect.left < 0) {
-      translationIcon.style.left = "5px";
-    }
-
-    if (rect.top < 0) {
-      translationIcon.style.top = "5px";
-    }
-  }, 0);
+  // 添加平滑显示效果
+  requestAnimationFrame(() => {
+    translationIcon.style.transition = "all 0.2s ease-out";
+    translationIcon.style.opacity = "1";
+    translationIcon.style.transform = "scale(1)";
+  });
 }
 
 // 隐藏翻译图标
 function hideIcon() {
-  if (translationIcon) translationIcon.style.display = "none";
+  if (translationIcon) {
+    translationIcon.style.display = "none";
+    // 确保从DOM中完全移除
+    if (translationIcon.parentNode) {
+      translationIcon.parentNode.removeChild(translationIcon);
+    }
+    translationIcon = null;
+  }
+}
+
+// 处理图标点击
+function handleIconClick() {
+  // 保存当前选中的文本和图标位置
+  const currentText = lastSelectedText;
+
+  // 获取图标的当前位置（在移除图标之前）
+  const iconRect = translationIcon.getBoundingClientRect();
+  const iconX = iconRect.left;
+  const iconY = iconRect.top;
+
+  // 确保完全移除图标
+  if (translationIcon) {
+    translationIcon.style.display = "none";
+    if (translationIcon.parentNode) {
+      translationIcon.parentNode.removeChild(translationIcon);
+    }
+    translationIcon = null;
+  }
+
+  // 显示弹窗并翻译（使用之前保存的图标位置）
+  requestAnimationFrame(() => {
+    showPopup(iconX, iconY);
+    translateText(currentText);
+  });
 }
 
 // 显示翻译弹窗（精准定位，防止 null 报错）
@@ -237,10 +314,13 @@ function showPopup(x, y) {
   // 创建容器
   const container = document.createElement("div");
   container.id = "glm-translator-container";
+
+  // 先将容器添加到DOM但设为不可见，以便获取实际尺寸
   Object.assign(container.style, {
     position: "fixed",
-    left: `${x}px`,
-    top: `${y}px`,
+    visibility: "hidden",
+    left: "0",
+    top: "0",
     zIndex: "2147483647",
     backgroundColor: "white",
     borderRadius: "8px",
@@ -269,7 +349,7 @@ function showPopup(x, y) {
   });
   container.appendChild(iframe);
 
-  // 创建关闭按钮 (在 iframe 外部，确保始终可点击)
+  // 创建关闭按钮
   const closeBtn = document.createElement("div");
   Object.assign(closeBtn.style, {
     position: "absolute",
@@ -293,84 +373,46 @@ function showPopup(x, y) {
   });
   container.appendChild(closeBtn);
 
-  // 等待 iframe 加载完成
-  iframe.onload = function () {
-    // 向 iframe 中写入内容
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 15px;
-            background-color: white;
-            color: #333;
-            font-size: 14px;
-            line-height: 1.5;
-            overflow: hidden;
-          }
-          .loading {
-            color: #666;
-            text-align: center;
-            padding: 10px;
-          }
-          .error {
-            color: #e53e3e;
-            padding: 10px;
-          }
-          .original {
-            color: #666;
-            margin-bottom: 8px;
-            word-break: break-word;
-          }
-          .divider {
-            height: 1px;
-            background: #eee;
-            margin: 8px 0;
-          }
-          .result {
-            color: #333;
-            word-break: break-word;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="loading">翻译中...</div>
-      </body>
-      </html>
-    `);
-    doc.close();
+  // 获取容器实际尺寸
+  const containerRect = container.getBoundingClientRect();
+  const containerWidth = containerRect.width;
+  const containerHeight = containerRect.height;
 
-    // 调整 iframe 高度
-    adjustIframeHeight(iframe);
+  // 计算最佳位置（优先显示在图标右侧）
+  let finalX = x + 40; // 图标右侧，留出一定间距
+  let finalY = y;
 
-    // 添加ResizeObserver实时监听内容变化
-    try {
-      if ("ResizeObserver" in window) {
-        const resizeObserver = new ResizeObserver(() => {
-          adjustIframeHeight(iframe);
-          // 确保弹窗在视图内
-          keepPopupInView(container);
-        });
+  // 检查右侧空间是否足够
+  if (finalX + containerWidth > window.innerWidth - 20) {
+    // 如果右侧空间不足，尝试显示在左侧
+    finalX = Math.max(20, x - containerWidth - 40);
+  }
 
-        resizeObserver.observe(doc.body);
-      }
-    } catch (error) {
-      console.error("初始化ResizeObserver失败:", error);
-    }
-  };
+  // 确保垂直方向适中且不超出视口
+  if (finalY + containerHeight > window.innerHeight - 20) {
+    // 如果底部空间不足，向上对齐
+    finalY = Math.max(20, window.innerHeight - containerHeight - 20);
+  }
+  if (finalY < 20) {
+    finalY = 20;
+  }
 
-  // 确保弹窗在视口内
-  setTimeout(() => {
-    keepPopupInView(container);
-  }, 100);
+  // 应用最终位置并显示
+  Object.assign(container.style, {
+    visibility: "visible",
+    left: `${finalX}px`,
+    top: `${finalY}px`,
+    transition: "opacity 0.2s ease-out", // 添加平滑显示效果
+    opacity: "0",
+  });
 
-  popupElement = container;
+  // 使用 requestAnimationFrame 确保过渡效果生效
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      container.style.opacity = "1";
+    });
+  });
+
   return container;
 }
 
@@ -433,37 +475,6 @@ function hidePopup() {
   const popup = document.querySelector("#glm-translator-container");
   if (popup) popup.remove();
   popupElement = null;
-}
-
-// 处理图标点击
-function handleIconClick() {
-  // 1. 立即隐藏图标
-  hideIcon();
-
-  // 2. 获取当前选区的 rect
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return;
-  const range = selection.getRangeAt(0);
-  const rect = range.getBoundingClientRect();
-
-  // 3. 使用改进的定位逻辑
-  let iconX = rect.left + rect.width / 2; // 选区中心点
-  let iconY = rect.bottom + 8;
-
-  // 确保在可视范围内
-  let popupX = Math.max(20, Math.min(iconX, window.innerWidth - 300));
-  let popupY = iconY;
-
-  // 如果底部空间不足，显示在上方
-  const popupHeight = 200; // 增加默认高度估计，从120px增加到200px
-  if (popupY + popupHeight > window.innerHeight - 20) {
-    popupY = rect.top - popupHeight - 8;
-    if (popupY < 20) popupY = 20;
-  }
-
-  // 4. 显示弹窗并翻译
-  showPopup(popupX, popupY);
-  translateText(lastSelectedText);
 }
 
 // 翻译文本
@@ -561,13 +572,29 @@ async function translateText(text) {
     const targetLang = settings.targetLang || "zh";
 
     // 发送翻译请求
-    const response = await chrome.runtime.sendMessage({
-      action: "translate",
-      text: text,
-      sourceLang: sourceLang,
-      targetLang: targetLang,
-      provider: provider,
-    });
+    let response;
+    try {
+      response = await chrome.runtime.sendMessage({
+        action: "translate",
+        text: text,
+        sourceLang: sourceLang,
+        targetLang: targetLang,
+        provider: provider,
+      });
+    } catch (error) {
+      if (
+        error.message &&
+        error.message.includes("Extension context invalidated")
+      ) {
+        // 扩展上下文失效，通常是因为扩展被重新加载
+        doc.body.innerHTML = `
+          <div class="error">扩展已更新，请刷新页面后重试</div>
+        `;
+        adjustIframeHeight(iframe);
+        return;
+      }
+      throw error;
+    }
 
     // 更新 iframe 内容
     if (response && response.translatedText) {
