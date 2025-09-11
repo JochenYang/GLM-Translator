@@ -334,7 +334,7 @@ export default {
     async function handleTranslate() {
       try {
         const settings = await chrome.storage.sync.get([
-          "selectedProvider",
+          "selectedApiId",
           "general",
         ]);
 
@@ -343,7 +343,7 @@ export default {
           text: inputText.value,
           sourceLang: sourceLang.value,
           targetLang: targetLang.value,
-          provider: settings.selectedProvider || "glm",
+          selectedApiId: settings.selectedApiId,
         });
 
         if (response && response.translatedText) {
@@ -433,11 +433,10 @@ export default {
           `请求翻译: 文本="${inputText.value}", 源语言=${sourceLang.value}, 目标语言=${targetLang.value}`
         );
 
-        // 从存储中获取当前选择的翻译服务
-        const settings = await chrome.storage.sync.get(["selectedProvider"]);
-        const provider = settings.selectedProvider || "google";
+        // 从存储中获取当前选择的API ID
+        const settings = await chrome.storage.sync.get(["selectedApiId"]);
 
-        console.log(`使用翻译服务: ${provider}`);
+        console.log(`使用翻译API ID: ${settings.selectedApiId}`);
 
         // 发送翻译请求，确保使用用户选择的目标语言
         const response = await chrome.runtime.sendMessage({
@@ -445,7 +444,7 @@ export default {
           text: inputText.value,
           sourceLang: sourceLang.value,
           targetLang: targetLang.value,
-          provider: provider,
+          selectedApiId: settings.selectedApiId,
         });
 
         console.log("翻译响应:", response);

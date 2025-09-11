@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       request.text,
       request.sourceLang,
       request.targetLang,
-      request.provider
+      request.selectedApiId
     )
       .then((result) => {
         sendResponse({ translatedText: result });
@@ -43,33 +43,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // 翻译函数
-async function translateText(text, sourceLang, targetLang, provider) {
+async function translateText(text, sourceLang, targetLang, selectedApiId) {
   // 获取配置
   const settings = await chrome.storage.sync.get([
-    "selectedProvider",
     "selectedApiId",
-    "savedApis",
-    "glmConfig",
+    "apiIds",
     "customConfig",
   ]);
 
   console.log(`源语言: ${sourceLang}, 目标语言: ${targetLang}`);
+  
+  // 使用传入的selectedApiId或从设置中获取
+  const apiId = selectedApiId || settings.selectedApiId;
 
   try {
     let result = "";
     let apiConfig = null;
 
-    // 检查是否有新版API配置
-    if (
-      settings.savedApis &&
-      settings.savedApis.length > 0 &&
-      settings.selectedApiId
-    ) {
-      apiConfig = settings.savedApis.find(
-        (api) => api.id === settings.selectedApiId
-      );
+    // 使用新的API存储格式获取当前选中的API
+    if (apiId && settings.apiIds && settings.apiIds.includes(apiId)) {
+      // 获取选中API的详细配置
+      const apiData = await chrome.storage.sync.get(`api_${apiId}`);
+      apiConfig = apiData[`api_${apiId}`];
+      
       if (apiConfig) {
-        console.log(`使用新版API配置: ${apiConfig.name}`);
+        console.log(`使用API配置: ${apiConfig.name}, 类型: ${apiConfig.presetId || 'custom'}`);
+        
+        // 统一使用callCustomTranslate处理所有API，不再特殊处理GLM
         result = await callCustomTranslate(
           text,
           sourceLang,
@@ -81,22 +81,9 @@ async function translateText(text, sourceLang, targetLang, provider) {
 
     // 如果没有找到新版配置，使用旧版配置
     if (!apiConfig) {
-      provider = provider || settings.selectedProvider || "custom";
-      console.log(`使用旧版翻译服务: ${provider}`);
+      console.log(`未找到API配置，使用兼容模式`);
 
-      switch (provider) {
-        case "glm":
-          const glmConfig = settings.glmConfig || {};
-          result = await callGlmTranslate(
-            text,
-            sourceLang,
-            targetLang,
-            glmConfig.apiKey,
-            glmConfig.model
-          );
-          break;
-        case "custom":
-        default:
+      // 使用兼容性保存的customConfig
           const customConfig = settings.customConfig || {};
           result = await callCustomTranslate(
             text,
@@ -104,8 +91,6 @@ async function translateText(text, sourceLang, targetLang, provider) {
             targetLang,
             customConfig
           );
-          break;
-      }
     }
 
     if (!result) {
@@ -119,63 +104,47 @@ async function translateText(text, sourceLang, targetLang, provider) {
   }
 }
 
-// GLM 翻译 API
-async function callGlmTranslate(text, sourceLang, targetLang, apiKey, model) {
-  if (!apiKey) {
-    throw new Error("请在设置中配置智谱 GLM API Key");
-  }
+// 获取语言名称的辅助函数 - 扩展支持的语言列表
+function getLanguageName(langCode) {
+  if (!langCode) return "未知语言";
 
-  if (!model) {
-    throw new Error("请在设置中配置智谱 GLM 模型名称（如：glm-4-flash）");
-  }
+  // 规范化语言代码
+  const normalizedCode = langCode.toLowerCase();
 
-  try {
-    // 获取正确的语言名称
-    const sourceLangName = getLanguageName(sourceLang);
-    const targetLangName = getLanguageName(targetLang);
+  // 处理自动检测
+  if (normalizedCode === "auto") return "自动检测";
 
-    // 修改提示语，使其更明确
-    const prompt = `请将以下${sourceLangName}文本翻译成${targetLangName}。请只返回翻译结果，不要添加任何解释：\n\n${text}`;
+  // 语言映射表
+  const languageNames = {
+    ar: "阿拉伯语",
+    pl: "波兰语",
+    da: "丹麦语",
+    de: "德语",
+    ru: "俄语",
+    fr: "法语",
+    fi: "芬兰语",
+    ko: "韩语",
+    nl: "荷兰语",
+    cs: "捷克语",
+    pt: "葡萄牙语",
+    ja: "日语",
+    sv: "瑞典语",
+    th: "泰语",
+    tr: "土耳其语",
+    es: "西班牙语",
+    hu: "匈牙利语",
+    en: "英语",
+    it: "意大利语",
+    vi: "越南语",
+    zh: "中文",
+    // 添加更多语言...
+  };
 
-    const url = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: model || "glm-4",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.2,
-        max_tokens: 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("GLM API 响应:", data);
-
-    if (data && data.choices && data.choices[0] && data.choices[0].message) {
-      return data.choices[0].message.content.trim();
-    } else {
-      throw new Error("GLM API 返回格式错误");
-    }
-  } catch (error) {
-    console.error("GLM 翻译错误:", error);
-    throw error; // 直接抛出错误，让上层处理
-  }
+  // 尝试获取语言名称
+  return languageNames[normalizedCode] || `${langCode}`;
 }
 
-// 自定义 API
+// 自定义 API - 修改为处理所有API类型
 async function callCustomTranslate(text, sourceLang, targetLang, config) {
   // 检查配置
   const apiUrl = config.url || config.apiUrl;
@@ -259,7 +228,7 @@ async function callCustomTranslate(text, sourceLang, targetLang, config) {
     }
 
     const data = await response.json();
-    console.log("自定义 API 响应:", data);
+    console.log("API 响应:", data);
 
     // 解析响应
     if (data.choices && data.choices[0] && data.choices[0].message) {
@@ -282,49 +251,9 @@ async function callCustomTranslate(text, sourceLang, targetLang, config) {
       throw new Error("无法解析 API 的响应格式");
     }
   } catch (error) {
-    console.error("自定义 API 翻译错误:", error);
+    console.error("API 翻译错误:", error);
     throw error; // 直接抛出错误，让上层处理
   }
-}
-
-// 获取语言名称的辅助函数 - 扩展支持的语言列表
-function getLanguageName(langCode) {
-  if (!langCode) return "未知语言";
-
-  // 规范化语言代码
-  const normalizedCode = langCode.toLowerCase();
-
-  // 处理自动检测
-  if (normalizedCode === "auto") return "自动检测";
-
-  // 语言映射表
-  const languageNames = {
-    ar: "阿拉伯语",
-    pl: "波兰语",
-    da: "丹麦语",
-    de: "德语",
-    ru: "俄语",
-    fr: "法语",
-    fi: "芬兰语",
-    ko: "韩语",
-    nl: "荷兰语",
-    cs: "捷克语",
-    pt: "葡萄牙语",
-    ja: "日语",
-    sv: "瑞典语",
-    th: "泰语",
-    tr: "土耳其语",
-    es: "西班牙语",
-    hu: "匈牙利语",
-    en: "英语",
-    it: "意大利语",
-    vi: "越南语",
-    zh: "中文",
-    // 添加更多语言...
-  };
-
-  // 尝试获取语言名称
-  return languageNames[normalizedCode] || `${langCode}`;
 }
 
 // 添加右键菜单

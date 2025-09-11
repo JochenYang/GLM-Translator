@@ -1,7 +1,7 @@
 /**
  * 背景脚本，处理API请求和右键菜单
  */
-import { translateText, addTranslationHistory } from "../services/translator";
+import { translateText, addTranslationHistory } from "../services/translator.js";
 
 // 初始化扩展
 function init() {

@@ -1,0 +1,605 @@
+<template>
+  <div class="provider-setup">
+    <!-- 提供商选择 -->
+    <div class="mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold text-gray-800">选择翻译服务商</h3>
+        <button
+          @click="showAllProviders = !showAllProviders"
+          class="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+        >
+          {{ showAllProviders ? '显示推荐服务商' : '显示所有服务商' }}
+          <svg
+            :class="['w-4 h-4 ml-1 transition-transform', showAllProviders ? 'rotate-180' : '']"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div
+          v-for="provider in displayProviders"
+          :key="provider.id"
+          @click="selectProvider(provider.id)"
+          :class="[
+            'provider-card cursor-pointer p-4 border-2 rounded-lg transition-all duration-300',
+            selectedProvider === provider.id
+              ? 'border-blue-500 bg-blue-50 shadow-lg'
+              : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+          ]"
+        >
+          <div class="flex items-start space-x-3">
+            <div class="text-2xl">{{ provider.icon }}</div>
+            <div class="flex-1">
+              <h4 class="font-semibold text-gray-800">{{ provider.name }}</h4>
+              <p class="text-sm text-gray-600 mt-1">{{ provider.description }}</p>
+              <div class="flex flex-wrap gap-2 mt-2">
+                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                  {{ provider.pricing }}
+                </span>
+                <span
+                  v-for="feature in provider.features.slice(0, 2)"
+                  :key="feature"
+                  class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
+                >
+                  {{ feature }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 自定义API快速入口 -->
+      <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="font-medium text-gray-800">⚙️ 自定义API</h4>
+            <p class="text-sm text-gray-600">配置兼容OpenAI格式的自定义翻译API</p>
+          </div>
+          <button
+            @click="selectProvider('custom')"
+            :class="[
+              'px-4 py-2 rounded-md transition-colors duration-200',
+              selectedProvider === 'custom'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+            ]"
+          >
+            {{ selectedProvider === 'custom' ? '已选择' : '配置' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- API配置 -->
+    <div v-if="selectedProvider" class="mb-6">
+      <h3 class="text-lg font-semibold mb-4 text-gray-800">API配置</h3>
+      <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+        <div class="space-y-4">
+          <!-- API Key输入 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              API Key
+              <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+              <input
+                v-model="apiKey"
+                :type="showApiKey ? 'text' : 'password'"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                :placeholder="`请输入 ${currentProviderConfig?.name} 的 API Key`"
+              />
+              <button
+                @click="showApiKey = !showApiKey"
+                class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+              >
+                <svg v-if="showApiKey" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                </svg>
+              </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-1">
+              <a :href="currentProviderConfig?.apiKeyUrl" target="_blank" class="text-blue-600 hover:underline">
+                {{ currentProviderConfig?.apiKeyHelp }}
+              </a>
+            </p>
+          </div>
+
+          <!-- 自定义API URL（仅自定义API显示） -->
+          <div v-if="currentProviderConfig?.isCustom">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              API地址
+              <span class="text-red-500">*</span>
+            </label>
+            <input
+              v-model="customUrl"
+              type="url"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="https://api.example.com/v1/chat/completions"
+            />
+            <p class="text-sm text-gray-500 mt-1">
+              请输入兼容OpenAI格式的API地址
+            </p>
+          </div>
+
+          <!-- 模型选择 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              模型选择
+            </label>
+            
+            <!-- 自定义API的模型输入 -->
+            <div v-if="currentProviderConfig?.isCustom">
+              <input
+                v-model="customModel"
+                type="text"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="请输入模型名称，如：gpt-3.5-turbo"
+              />
+              <p class="text-sm text-gray-500 mt-1">
+                请输入您要使用的模型名称
+              </p>
+            </div>
+            
+            <!-- 预设提供商的模型选择 -->
+            <div v-else>
+              <select
+                v-model="selectedModel"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+              >
+                <option
+                  v-for="model in currentProviderConfig?.models"
+                  :key="model.id"
+                  :value="model.id"
+                >
+                  {{ model.name }} - {{ model.description }}
+                </option>
+                <option value="custom">自定义模型...</option>
+              </select>
+              
+              <!-- 自定义模型输入框 -->
+              <div v-if="selectedModel === 'custom'" class="mt-2">
+                <input
+                  v-model="customModelName"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  :placeholder="`请输入${currentProviderConfig?.name}的自定义模型名称`"
+                />
+                <p class="text-sm text-gray-500 mt-1">
+                  例如：{{ getModelExample() }}
+                </p>
+                <div v-if="customModelName" class="mt-1 text-sm text-green-600">
+                  ✓ 当前模型：{{ customModelName }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 测试连接 -->
+          <div class="flex items-center space-x-4">
+            <button
+              @click="testConnection"
+              :disabled="!apiKey || testing"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              <span v-if="testing">测试中...</span>
+              <span v-else>测试连接</span>
+            </button>
+            
+            <div v-if="testResult" class="flex items-center">
+              <svg
+                v-if="testResult.success"
+                class="w-5 h-5 text-green-500 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <svg
+                v-else
+                class="w-5 h-5 text-red-500 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+              <span :class="testResult.success ? 'text-green-600' : 'text-red-600'" class="text-sm">
+                {{ testResult.message }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 保存按钮 -->
+          <div class="pt-4 border-t border-gray-200">
+            <button
+              @click="saveConfig"
+              :disabled="!apiKey"
+              class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              保存配置
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 当前配置状态 -->
+    <div v-if="selectedProvider && (apiKey || customUrl)" class="mb-6">
+      <h3 class="text-lg font-semibold mb-4 text-gray-800">当前配置状态</h3>
+      <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-600">服务商：</span>
+            <span class="font-medium">{{ currentProviderConfig?.name }}</span>
+          </div>
+          <div v-if="currentProviderConfig?.isCustom" class="flex justify-between">
+            <span class="text-gray-600">API地址：</span>
+            <span class="font-medium text-xs">{{ customUrl || '未设置' }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600">模型：</span>
+            <span class="font-medium">{{ getFinalModelName() || '未设置' }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600">API Key：</span>
+            <span class="font-medium">{{ apiKey ? '已设置 (' + apiKey.slice(0, 8) + '...)' : '未设置' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 设置指南 -->
+    <div v-if="selectedProvider && currentProviderConfig" class="mb-6">
+      <h3 class="text-lg font-semibold mb-4 text-gray-800">设置指南</h3>
+      <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+        <ol class="list-decimal list-inside space-y-2 text-sm text-blue-800">
+          <li v-for="step in currentProviderConfig.setupGuide" :key="step">
+            {{ step }}
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- 成功提示 -->
+    <div
+      v-if="showSuccess"
+      class="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded shadow-lg z-50"
+    >
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        配置保存成功！
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { getRecommendedProviders, getAllProviders, getProviderConfig, createApiConfig } from '../config/providers.js';
+import { translateText } from '../services/translator.js';
+
+export default {
+  name: 'ProviderSetup',
+  data() {
+    return {
+      recommendedProviders: getRecommendedProviders(),
+      allProviders: getAllProviders(),
+      showAllProviders: false,
+      selectedProvider: null,
+      apiKey: '',
+      selectedModel: '',
+      customUrl: '',
+      customModel: '',
+      customModelName: '',
+      showApiKey: false,
+      testing: false,
+      testResult: null,
+      showSuccess: false
+    };
+  },
+  computed: {
+    currentProviderConfig() {
+      return this.selectedProvider ? getProviderConfig(this.selectedProvider) : null;
+    },
+    displayProviders() {
+      return this.showAllProviders ? this.allProviders : this.recommendedProviders;
+    }
+  },
+  watch: {
+    selectedProvider(newProvider) {
+      if (newProvider && this.currentProviderConfig) {
+        // 只重置测试结果，不重置模型选择（由 loadProviderConfig 处理）
+        this.testResult = null;
+      }
+    }
+  },
+  async mounted() {
+    await this.loadCurrentConfig();
+  },
+  methods: {
+    selectProvider(providerId) {
+      // 只有在真正切换提供商时才清空配置
+      if (this.selectedProvider !== providerId) {
+        this.selectedProvider = providerId;
+        this.apiKey = '';
+        this.customUrl = '';
+        this.customModel = '';
+        this.customModelName = '';
+        this.testResult = null;
+        
+        // 设置默认模型
+        const providerConfig = getProviderConfig(providerId);
+        if (providerConfig) {
+          this.selectedModel = providerConfig.defaultModel;
+        }
+        
+        // 尝试加载该提供商的已保存配置（会覆盖默认设置）
+        this.loadProviderConfig(providerId);
+      }
+    },
+
+    async loadCurrentConfig() {
+      try {
+        const settings = await chrome.storage.sync.get(['selectedProvider', 'savedApis', 'selectedApiId']);
+        
+        if (settings.selectedProvider) {
+          this.selectedProvider = settings.selectedProvider;
+        }
+        
+        if (settings.savedApis && settings.selectedApiId) {
+          const currentApi = settings.savedApis.find(api => api.id === settings.selectedApiId);
+          if (currentApi) {
+            this.selectedProvider = currentApi.provider;
+            this.apiKey = currentApi.apiKey;
+            
+            // 处理自定义API
+            if (currentApi.provider === 'custom') {
+              this.customUrl = currentApi.url;
+              this.customModel = currentApi.model;
+            } else {
+              // 处理预设提供商的模型
+              const providerConfig = getProviderConfig(currentApi.provider);
+              if (providerConfig) {
+                // 检查是否是预设模型
+                const isPresetModel = providerConfig.models.some(model => model.id === currentApi.model);
+                
+                if (isPresetModel) {
+                  // 是预设模型，直接设置
+                  this.selectedModel = currentApi.model;
+                } else {
+                  // 是自定义模型，设置为custom并保存自定义名称
+                  this.selectedModel = 'custom';
+                  this.customModelName = currentApi.model;
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('加载配置失败:', error);
+      }
+    },
+
+    async testConnection() {
+      if (!this.apiKey || !this.selectedProvider) return;
+
+      this.testing = true;
+      this.testResult = null;
+
+      try {
+        let tempConfig;
+        
+        if (this.currentProviderConfig?.isCustom) {
+          // 自定义API测试
+          if (!this.customUrl || !this.customModel) {
+            this.testResult = {
+              success: false,
+              message: '请填写完整的自定义API配置'
+            };
+            this.testing = false;
+            return;
+          }
+          
+          tempConfig = {
+            id: `test_${Date.now()}`,
+            name: '测试配置',
+            provider: 'custom',
+            url: this.customUrl,
+            apiKey: this.apiKey,
+            model: this.customModel,
+            headers: {}
+          };
+        } else {
+          // 预设提供商测试
+          const modelToUse = this.getFinalModelName();
+          if (this.selectedModel === 'custom' && !this.customModelName) {
+            this.testResult = {
+              success: false,
+              message: '请输入自定义模型名称'
+            };
+            this.testing = false;
+            return;
+          }
+          
+          tempConfig = createApiConfig(this.selectedProvider, this.apiKey, modelToUse);
+        }
+        
+        // 保存临时配置
+        await chrome.storage.sync.set({
+          selectedProvider: this.selectedProvider,
+          savedApis: [tempConfig],
+          selectedApiId: tempConfig.id
+        });
+
+        // 测试翻译
+        const result = await translateText('Hello', 'en', 'zh');
+        
+        if (result && result.translatedText) {
+          this.testResult = {
+            success: true,
+            message: '连接成功！翻译测试通过'
+          };
+        } else {
+          throw new Error('翻译结果为空');
+        }
+      } catch (error) {
+        this.testResult = {
+          success: false,
+          message: `连接失败: ${error.message}`
+        };
+      } finally {
+        this.testing = false;
+      }
+    },
+
+    async saveConfig() {
+      if (!this.apiKey || !this.selectedProvider) return;
+
+      try {
+        let config;
+        
+        if (this.currentProviderConfig?.isCustom) {
+          // 自定义API配置
+          if (!this.customUrl || !this.customModel) {
+            alert('请填写完整的自定义API配置');
+            return;
+          }
+          
+          config = {
+            id: `custom_${Date.now()}`,
+            name: '自定义API',
+            provider: 'custom',
+            url: this.customUrl,
+            apiKey: this.apiKey,
+            model: this.customModel,
+            headers: {},
+            createdAt: Date.now(),
+            lastUsed: null
+          };
+        } else {
+          // 预设提供商配置
+          const modelToUse = this.getFinalModelName();
+          if (this.selectedModel === 'custom' && !this.customModelName) {
+            alert('请输入自定义模型名称');
+            return;
+          }
+          config = createApiConfig(this.selectedProvider, this.apiKey, modelToUse);
+        }
+        
+        // 获取现有配置
+        const settings = await chrome.storage.sync.get(['savedApis']);
+        const savedApis = settings.savedApis || [];
+        
+        // 移除同提供商的旧配置
+        const filteredApis = savedApis.filter(api => api.provider !== this.selectedProvider);
+        filteredApis.push(config);
+
+        // 保存配置
+        await chrome.storage.sync.set({
+          selectedProvider: this.selectedProvider,
+          savedApis: filteredApis,
+          selectedApiId: config.id
+        });
+
+        // 显示成功提示
+        this.showSuccess = true;
+        setTimeout(() => {
+          this.showSuccess = false;
+        }, 3000);
+
+        console.log('配置保存成功:', config);
+      } catch (error) {
+        console.error('保存配置失败:', error);
+        alert('保存配置失败: ' + error.message);
+      }
+    },
+
+    getModelExample() {
+      if (!this.currentProviderConfig) return '';
+      
+      const examples = {
+        'glm': 'glm-4-flash, glm-4-air, glm-4-flashx',
+        'volcengine': 'doubao-lite-4k, doubao-pro-128k',
+        'siliconflow': 'Qwen/Qwen2.5-72B-Instruct, deepseek-ai/DeepSeek-V2.5',
+        'hunyuan': 'hunyuan-lite, hunyuan-standard, hunyuan-pro',
+        'tongyi': 'qwen-turbo, qwen-plus, qwen-max, qwen2.5-72b-instruct',
+        'deepseek': 'deepseek-chat, deepseek-coder',
+        'openai': 'gpt-4o, gpt-4o-mini, gpt-3.5-turbo',
+        'claude': 'claude-3-5-sonnet-20241022, claude-3-haiku-20240307'
+      };
+      
+      return examples[this.selectedProvider] || '请输入完整的模型名称';
+    },
+
+    getFinalModelName() {
+      if (this.currentProviderConfig?.isCustom) {
+        return this.customModel;
+      } else if (this.selectedModel === 'custom') {
+        return this.customModelName;
+      } else {
+        return this.selectedModel || this.currentProviderConfig?.defaultModel;
+      }
+    },
+
+    async loadProviderConfig(providerId) {
+      try {
+        const settings = await chrome.storage.sync.get(['savedApis']);
+        if (settings.savedApis) {
+          // 查找该提供商的已保存配置
+          const providerApi = settings.savedApis.find(api => api.provider === providerId);
+          if (providerApi) {
+            console.log('找到已保存的配置:', providerApi);
+            this.apiKey = providerApi.apiKey;
+            
+            if (providerId === 'custom') {
+              this.customUrl = providerApi.url;
+              this.customModel = providerApi.model;
+            } else {
+              const providerConfig = getProviderConfig(providerId);
+              if (providerConfig) {
+                const isPresetModel = providerConfig.models.some(model => model.id === providerApi.model);
+                console.log(`模型 ${providerApi.model} 是否为预设模型:`, isPresetModel);
+                
+                if (isPresetModel) {
+                  this.selectedModel = providerApi.model;
+                  console.log('设置为预设模型:', providerApi.model);
+                } else {
+                  this.selectedModel = 'custom';
+                  this.customModelName = providerApi.model;
+                  console.log('设置为自定义模型:', providerApi.model);
+                }
+              }
+            }
+          } else {
+            console.log('未找到该提供商的已保存配置:', providerId);
+          }
+        }
+      } catch (error) {
+        console.error('加载提供商配置失败:', error);
+      }
+    }
+  }
+};
+</script>
+
+<style scoped>
+.provider-card {
+  transition: all 0.3s ease;
+}
+
+.provider-card:hover {
+  transform: translateY(-2px);
+}
+</style>
