@@ -5,7 +5,7 @@
 ![GLM Translator Logo](public/icons/icon128.png)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-brightgreen.svg)]()
+[![Version](https://img.shields.io/badge/version-1.2.1-brightgreen.svg)]()
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue.svg?logo=google-chrome)]()
 [![AI Powered](https://img.shields.io/badge/AI-Powered-orange.svg)]()
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D.svg?logo=vue.js)](https://vuejs.org/)
@@ -15,18 +15,20 @@
 
 ## 📝 项目介绍
 
-GLM Translator 是一款简洁高效的浏览器划词翻译扩展，支持多种语言互译，集成了多家主流 AI 翻译服务，包括智谱 GLM、火山引擎、硅基流动、腾讯混元、阿里通义、DeepSeek 等，让您在浏览网页时获得无缝的翻译体验。
+GLM Translator 是一款**商业级**的浏览器划词翻译扩展，支持多种语言互译，集成了**8家主流 AI 翻译服务**，包括智谱 GLM、火山引擎、硅基流动、腾讯混元、阿里通义、DeepSeek、OpenAI、Claude 等，采用**多策略智能敏感内容处理**技术，让您在浏览网页时获得高质量、无障碍的翻译体验。
 
 ## ✨ 功能特点
 
-### 翻译服务
+### 翻译服务（2025年最新模型）
 
-- **智谱 GLM** - AI 驱动的智能翻译服务，支持 glm-4-flash 等模型
-- **火山引擎** - 字节跳动旗下的 AI 翻译服务，支持豆包等模型
-- **硅基流动** - 提供 Qwen2.5 等开源模型的翻译服务
-- **腾讯混元** - 腾讯云的 AI 翻译服务，支持混元模型
-- **阿里通义** - 阿里云的通义千问翻译服务
-- **DeepSeek** - DeepSeek 的 AI 翻译服务
+- **智谱 GLM** - 支持最新 GLM-4.5 系列模型（GLM-4.5-Flash、GLM-4.5-Plus 等）
+- **火山引擎** - 字节跳动豆包模型，支持 Pro-256K 超长文本处理
+- **硅基流动** - 提供 Qwen2.5-32B、Llama-3.1-70B 等开源模型
+- **腾讯混元** - 支持混元-Turbo、混元-FunctionCall 等最新模型
+- **阿里通义** - 通义千问系列，包括 Qwen-Long 长文本模型
+- **DeepSeek** - 支持 DeepSeek-Reasoner 推理增强模型
+- **OpenAI** - 最新 GPT-4o、GPT-4o-mini 模型（需海外网络）
+- **Claude** - 最新 Claude-4-Sonnet、Claude-4.1-Opus 模型（需海外网络）
 - **自定义 API** - 支持配置其他兼容 OpenAI 格式的翻译服务
 
 ### 核心功能
@@ -34,10 +36,12 @@ GLM Translator 是一款简洁高效的浏览器划词翻译扩展，支持多�
 - **划词翻译** - 支持选中文本后立即翻译或显示图标
 - **右键菜单** - 通过右键菜单快捷翻译选中文本
 - **快捷键支持** - 内置Alt+T和Alt+G快捷键，便捷操作翻译功能
+- **🎯 智能敏感内容处理** - 多策略自动重试系统，智能绕过内容限制
 - **多语言支持** - 支持 20+种语言互译，包括中文、英语、日语、韩语等
-- **简洁界面** - 无干扰的翻译体验，现代化 UI 设计
-- **高度可配置** - 可自定义翻译服务、触发方式、默认语言和 API 配置
-- **智能配置** - 预设多家主流 AI 服务商配置，一键切换翻译服务
+- **🎨 商业级界面设计** - 简洁现代的UI，2x2网格功能展示
+- **高度可配置** - 支持自定义模型配置，实时API连接测试
+- **智能配置** - 预设8家主流 AI 服务商配置，一键切换翻译服务
+- **配置持久化** - 完善的配置保存机制，自定义模型刷新不丢失
 - **错误处理** - 完善的错误提示和配置验证机制
 
 ## 🔧 安装方法
@@ -102,7 +106,7 @@ npm run build
 
 #### 智谱 GLM
 - 访问 [智谱AI开放平台](https://open.bigmodel.cn/) 获取 API Key
-- 推荐模型：`glm-4-flash`（速度快）、`glm-4`（质量高）
+- 推荐模型：`glm-4.5-flash`（最新快速）、`glm-4.5-plus`（最高质量）、`glm-4v`（多模态）
 
 #### 火山引擎
 - 访问 [火山引擎控制台](https://console.volcengine.com/ark) 创建推理接入点
@@ -111,19 +115,29 @@ npm run build
 
 #### 硅基流动
 - 访问 [硅基流动平台](https://siliconflow.cn/) 获取 API Key
-- 推荐模型：`Qwen/Qwen2.5-7B-Instruct`、`meta-llama/Llama-3.1-8B-Instruct`
+- 推荐模型：`Qwen/Qwen2.5-14B-Instruct`（默认）、`Qwen/Qwen2.5-32B-Instruct`、`meta-llama/Llama-3.1-70B-Instruct`
 
 #### 腾讯混元
 - 访问 [腾讯云控制台](https://console.cloud.tencent.com/hunyuan) 获取 API Key
-- 推荐模型：`hunyuan-lite`（免费）、`hunyuan-standard`
+- 推荐模型：`hunyuan-lite`（免费）、`hunyuan-turbo`（高速）、`hunyuan-functioncall`（函数调用）
 
 #### 阿里通义
 - 访问 [阿里云百炼平台](https://bailian.console.aliyun.com/) 获取 API Key
-- 推荐模型：`qwen-turbo`、`qwen-plus`
+- 推荐模型：`qwen-turbo`（默认）、`qwen-max`（最高质量）、`qwen-long`（长文本）
 
 #### DeepSeek
 - 访问 [DeepSeek 平台](https://platform.deepseek.com/) 获取 API Key
-- 推荐模型：`deepseek-chat`
+- 推荐模型：`deepseek-chat`（默认）、`deepseek-reasoner`（推理增强）、`deepseek-coder`（代码专用）
+
+#### OpenAI
+- 访问 [OpenAI 平台](https://platform.openai.com/api-keys) 获取 API Key
+- 推荐模型：`gpt-4o-mini`（高性价比）、`gpt-4o`（最新旗舰）、`gpt-4-turbo`（快速GPT-4）
+- **注意：需要海外网络环境访问**
+
+#### Claude
+- 访问 [Anthropic 控制台](https://console.anthropic.com/) 获取 API Key
+- 推荐模型：`claude-sonnet-4-20250514`（最佳平衡）、`claude-opus-4-1-20250805`（最强性能）
+- **注意：需要海外网络环境访问**
 
 ## 🔨 技术架构
 
@@ -146,16 +160,24 @@ npm run build
 4. 推送到分支 (`git push origin feature/amazing-feature`)
 5. 打开一个 Pull Request
 
-## 📊 未来计划
+## 📊 更新日志 & 未来计划
 
-- [x] 支持多家主流 AI 翻译服务
-- [x] 添加快捷键支持
-- [x] 完善配置验证和错误处理
-- [ ] 添加历史记录功能
-- [ ] 支持文本朗读
-- [ ] 优化翻译结果展示
-- [ ] 支持更多语言模型
+### v1.2.1 (Latest) ✨
+- [x] 升级至商业级AI翻译扩展
+- [x] 新增8个主流AI翻译服务商支持
+- [x] 更新所有模型至2025年最新版本
+- [x] 实现多策略智能敏感内容处理系统
+- [x] 新增ProviderSetup组件，支持自定义模型配置
+- [x] 优化设置界面UI，2x2网格布局
+- [x] 完善配置持久化机制
+
+### 未来计划
+- [ ] 添加翻译历史记录功能
+- [ ] 支持文本朗读（TTS）
+- [ ] 优化翻译结果展示动画
 - [ ] 添加翻译质量评估
+- [ ] 支持批量文本翻译
+- [ ] 添加用户偏好学习
 
 ## 📄 许可证
 
@@ -168,12 +190,14 @@ npm run build
 ## 🙏 致谢
 
 感谢以下 AI 服务提供商的支持：
-- 智谱AI（GLM）
-- 字节跳动（火山引擎）
-- 硅基流动
-- 腾讯云（混元）
-- 阿里云（通义千问）
-- DeepSeek
+- 智谱AI（GLM-4.5系列）
+- 字节跳动（火山引擎/豆包）
+- 硅基流动（开源模型托管）
+- 腾讯云（混元系列）
+- 阿里云（通义千问系列）
+- DeepSeek（推理增强模型）
+- OpenAI（GPT-4o系列）
+- Anthropic（Claude-4系列）
 
 ---
 
