@@ -3,12 +3,12 @@
     <!-- 提供商选择 -->
     <div class="mb-6">
       <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold text-gray-800">选择翻译服务商</h3>
+        <h3 class="text-lg font-semibold text-gray-800">{{ t('translate.selectProvider') }}</h3>
         <button
           @click="showAllProviders = !showAllProviders"
           class="text-sm text-blue-600 hover:text-blue-800 flex items-center"
         >
-          {{ showAllProviders ? '显示推荐服务商' : '显示所有服务商' }}
+          {{ showAllProviders ? t('provider.showRecommended') : t('provider.showAll') }}
           <svg
             :class="['w-4 h-4 ml-1 transition-transform', showAllProviders ? 'rotate-180' : '']"
             fill="none"
@@ -22,7 +22,7 @@
       
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div
-          v-for="provider in displayProviders"
+          v-for="provider in localizedProviders"
           :key="provider.id"
           @click="selectProvider(provider.id)"
           :class="[
@@ -33,7 +33,15 @@
           ]"
         >
           <div class="flex items-start space-x-3">
-            <div class="text-2xl">{{ provider.icon }}</div>
+            <div class="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+              <img
+                v-if="getProviderLogo(provider.id)"
+                :src="getProviderLogo(provider.id)"
+                :alt="provider.name"
+                class="w-8 h-8 object-contain"
+              />
+              <span v-else class="text-2xl">{{ provider.icon }}</span>
+            </div>
             <div class="flex-1">
               <h4 class="font-semibold text-gray-800">{{ provider.name }}</h4>
               <p class="text-sm text-gray-600 mt-1">{{ provider.description }}</p>
@@ -58,8 +66,8 @@
       <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="font-medium text-gray-800">⚙️ 自定义API</h4>
-            <p class="text-sm text-gray-600">配置兼容OpenAI格式的自定义翻译API</p>
+            <h4 class="font-medium text-gray-800">⚙️ {{ t('provider.customApi') }}</h4>
+            <p class="text-sm text-gray-600">{{ t('provider.customApiDesc') }}</p>
           </div>
           <button
             @click="selectProvider('custom')"
@@ -70,7 +78,7 @@
                 : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
             ]"
           >
-            {{ selectedProvider === 'custom' ? '已选择' : '配置' }}
+            {{ selectedProvider === 'custom' ? t('provider.selected') : t('provider.config') }}
           </button>
         </div>
       </div>
@@ -78,13 +86,13 @@
 
     <!-- API配置 -->
     <div v-if="selectedProvider" class="mb-6">
-      <h3 class="text-lg font-semibold mb-4 text-gray-800">API配置</h3>
+      <h3 class="text-lg font-semibold mb-4 text-gray-800">{{ t('translate.apiConfig') }}</h3>
       <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
         <div class="space-y-4">
           <!-- API Key输入 -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              API Key
+              {{ t('translate.apiKey') }}
               <span class="text-red-500">*</span>
             </label>
             <div class="relative">
@@ -134,7 +142,7 @@
           <!-- 模型选择 -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              模型选择
+              {{ t('translate.modelSelection') }}
             </label>
             
             <!-- 自定义API的模型输入 -->
@@ -191,8 +199,8 @@
               :disabled="!apiKey || testing"
               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
             >
-              <span v-if="testing">测试中...</span>
-              <span v-else>测试连接</span>
+              <span v-if="testing">{{ t('provider.testing') }}</span>
+              <span v-else>{{ t('provider.testBtn') }}</span>
             </button>
             
             <div v-if="testResult" class="flex items-center">
@@ -227,7 +235,7 @@
               :disabled="!apiKey"
               class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
             >
-              保存配置
+              {{ t('provider.saveConfig') }}
             </button>
           </div>
         </div>
@@ -236,24 +244,24 @@
 
     <!-- 当前配置状态 -->
     <div v-if="selectedProvider && (apiKey || customUrl)" class="mb-6">
-      <h3 class="text-lg font-semibold mb-4 text-gray-800">当前配置状态</h3>
+      <h3 class="text-lg font-semibold mb-4 text-gray-800">{{ t('provider.configStatus') }}</h3>
       <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
         <div class="space-y-2 text-sm">
           <div class="flex justify-between">
-            <span class="text-gray-600">服务商：</span>
+            <span class="text-gray-600">{{ t('provider.provider') }}</span>
             <span class="font-medium">{{ currentProviderConfig?.name }}</span>
           </div>
           <div v-if="currentProviderConfig?.isCustom" class="flex justify-between">
-            <span class="text-gray-600">API地址：</span>
-            <span class="font-medium text-xs">{{ customUrl || '未设置' }}</span>
+            <span class="text-gray-600">{{ t('provider.url') }}</span>
+            <span class="font-medium text-xs">{{ customUrl || t('provider.notSet') }}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-gray-600">模型：</span>
-            <span class="font-medium">{{ getFinalModelName() || '未设置' }}</span>
+            <span class="text-gray-600">{{ t('provider.model') }}</span>
+            <span class="font-medium">{{ getFinalModelName() || t('provider.notSet') }}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-gray-600">API Key：</span>
-            <span class="font-medium">{{ apiKey ? '已设置 (' + apiKey.slice(0, 8) + '...)' : '未设置' }}</span>
+            <span class="text-gray-600">{{ t('provider.apiKey') }}</span>
+            <span class="font-medium">{{ apiKey ? t('provider.apiKeySet') + ' (' + apiKey.slice(0, 8) + '...)' : t('provider.notSet') }}</span>
           </div>
         </div>
       </div>
@@ -261,10 +269,10 @@
 
     <!-- 设置指南 -->
     <div v-if="selectedProvider && currentProviderConfig" class="mb-6">
-      <h3 class="text-lg font-semibold mb-4 text-gray-800">设置指南</h3>
+      <h3 class="text-lg font-semibold mb-4 text-gray-800">{{ t('provider.setupGuide') }}</h3>
       <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
         <ol class="list-decimal list-inside space-y-2 text-sm text-blue-800">
-          <li v-for="step in currentProviderConfig.setupGuide" :key="step">
+          <li v-for="(step, index) in getSetupGuideSteps(selectedProvider)" :key="index">
             {{ step }}
           </li>
         </ol>
@@ -289,6 +297,7 @@
 <script>
 import { getRecommendedProviders, getAllProviders, getProviderConfig, createApiConfig } from '../config/providers.js';
 import { translateText } from '../services/translator.js';
+import { initLanguage, getCurrentLanguage, t, setupLanguageListener } from '../utils/i18n.js';
 
 export default {
   name: 'ProviderSetup',
@@ -298,6 +307,8 @@ export default {
       allProviders: getAllProviders(),
       showAllProviders: false,
       selectedProvider: null,
+      currentLanguage: 'zh',
+      t,
       apiKey: '',
       selectedModel: '',
       customUrl: '',
@@ -315,6 +326,9 @@ export default {
     },
     displayProviders() {
       return this.showAllProviders ? this.allProviders : this.recommendedProviders;
+    },
+    localizedProviders() {
+      return this.displayProviders.map(provider => this.getLocalizedProvider(provider));
     }
   },
   watch: {
@@ -326,9 +340,116 @@ export default {
     }
   },
   async mounted() {
+    await this.initI18nLanguage();
     await this.loadCurrentConfig();
   },
   methods: {
+    // 初始化语言设置
+    async initI18nLanguage() {
+      try {
+        await initLanguage();
+        this.currentLanguage = await getCurrentLanguage();
+        this.setupLanguageListener();
+        console.log('ProviderSetup language initialized:', this.currentLanguage);
+      } catch (error) {
+        console.error('Failed to initialize language:', error);
+      }
+    },
+
+    setupLanguageListener() {
+      setupLanguageListener((newLanguage) => {
+        this.currentLanguage = newLanguage;
+        this.$forceUpdate();
+        console.log('ProviderSetup language changed to:', newLanguage);
+      });
+    },
+
+    // 获取本地化的服务商信息
+    getLocalizedProvider(provider) {
+      return {
+        ...provider,
+        name: t(`provider.name.${provider.id}`) || provider.name,
+        description: t(`provider.desc.${provider.id}`) || provider.description,
+        pricing: this.getLocalizedPricing(provider.pricing),
+        features: provider.features.map(feature => this.getLocalizedFeature(feature))
+      };
+    },
+
+    // 获取提供商logo
+    getProviderLogo(providerId) {
+      const logoMap = {
+        'glm': chrome.runtime.getURL('icons/zhipuAI.png'),
+        'volcengine': chrome.runtime.getURL('icons/huoshanyinqin.png'),
+        'siliconflow': chrome.runtime.getURL('icons/siliconflow.png'),
+        'hunyuan': chrome.runtime.getURL('icons/tengxunhunyuan.png'),
+        'tongyi': chrome.runtime.getURL('icons/tongyiqianwen.png'),
+        'deepseek': chrome.runtime.getURL('icons/deepseek.png'),
+        'custom': chrome.runtime.getURL('icons/custom.png')
+      };
+      return logoMap[providerId] || null;
+    },
+
+    // 获取设置指南步骤的翻译
+    getSetupGuideSteps(providerId) {
+      const steps = [];
+      for (let i = 1; i <= 4; i++) {
+        const stepKey = `provider.setupGuide.${providerId}.step${i}`;
+        const stepText = t(stepKey);
+        if (stepText && stepText !== stepKey) {
+          steps.push(stepText);
+        }
+      }
+      return steps;
+    },
+
+    // 获取本地化的定价信息
+    getLocalizedPricing(pricing) {
+      const pricingMap = {
+        '免费额度 + 按量计费': 'provider.pricing.free',
+        '按量计费': 'provider.pricing.volume',
+        '免费额度 + 优惠价格': 'provider.pricing.freeVolume',
+        'Lite版本免费': 'provider.pricing.freeLite',
+        '优惠价格': 'provider.pricing.discount',
+        '根据服务商而定': 'provider.pricing.custom'
+      };
+      const key = pricingMap[pricing] || pricing;
+      const translated = t(key);
+      return translated === key ? pricing : translated;
+    },
+
+    // 获取本地化的特性信息
+    getLocalizedFeature(feature) {
+      const featureMap = {
+        '高质量翻译': 'provider.feature.highQuality',
+        '多语言支持': 'provider.feature.multiLang',
+        '快速响应': 'provider.feature.fastResponse',
+        '豆包模型': 'provider.feature.doubao',
+        '长文本支持': 'provider.feature.longText',
+        '高并发': 'provider.feature.highConcurrency',
+        '开源模型': 'provider.feature.openSource',
+        '价格优惠': 'provider.feature.priceAdvantage',
+        '多模型选择': 'provider.feature.modelChoice',
+        '免费额度': 'provider.feature.freeQuota',
+        '腾讯云服务': 'provider.feature.tencentCloud',
+        '稳定可靠': 'provider.feature.reliable',
+        '通义千问': 'provider.feature.qwen',
+        '阿里云服务': 'provider.feature.aliyun',
+        '多模型支持': 'provider.feature.multiModel',
+        '高性价比': 'provider.feature.costEffective',
+        '专业模型': 'provider.feature.professional',
+        'GPT模型': 'provider.feature.gptModel',
+        '全球服务': 'provider.feature.globalService',
+        'Claude模型': 'provider.feature.claudeModel',
+        '安全可靠': 'provider.feature.safe',
+        '自定义配置': 'provider.feature.customConfig',
+        '灵活接入': 'provider.feature.flexible',
+        '兼容OpenAI格式': 'provider.feature.openaiCompatible'
+      };
+      const key = featureMap[feature] || feature;
+      const translated = t(key);
+      return translated === key ? feature : translated;
+    },
+
     selectProvider(providerId) {
       // 只有在真正切换提供商时才清空配置
       if (this.selectedProvider !== providerId) {

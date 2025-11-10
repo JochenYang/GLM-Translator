@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GLM Translator",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "一款简洁高效的网页翻译工具，提供以下功能：\n\n翻译服务：\n• 多种大模型支持 - 支持多种AI翻译接口\n• 用户自配置 - 通过填写自己的API密钥使用服务\n\n核心功能：\n✓ 划词翻译 - 支持选中后立即翻译或显示图标\n✓ 右键菜单 - 快捷翻译选中文本\n✓ 多语言支持 - 支持多种语言互译\n✓ 简洁界面 - 无干扰的翻译体验\n✓ 高度可配置 - 可自定义翻译服务和触发方式",
   "permissions": ["storage", "contextMenus"],
   "host_permissions": ["https://*/", "http://*/"],

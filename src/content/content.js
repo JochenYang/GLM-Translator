@@ -146,6 +146,10 @@ async function handleSelection(event) {
   lastSelectedText = text;
 
   try {
+    if (!chrome.storage || !chrome.storage.sync) {
+      console.warn("Chrome storage not available");
+      return;
+    }
     const result = await chrome.storage.sync.get("general");
     const settings = result.general || {};
 
@@ -562,6 +566,10 @@ async function translateText(text) {
     adjustIframeHeight(iframe);
 
     // 获取设置中的语言
+    if (!chrome.storage || !chrome.storage.sync) {
+      console.warn("Chrome storage not available");
+      return;
+    }
     const result = await chrome.storage.sync.get([
       "general",
       "selectedProvider",

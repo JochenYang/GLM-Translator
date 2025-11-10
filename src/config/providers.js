@@ -23,7 +23,7 @@ export const PROVIDER_PRESETS = {
       { id: 'glm-4.5', name: 'GLM-4.5', description: '4.5版本标准模型' },
       { id: 'glm-4.5-plus', name: 'GLM-4.5-Plus', description: '4.5版本最高质量' }
     ],
-    defaultModel: 'glm-4.5-flash',
+    defaultModel: 'glm-4.5-plus',
     apiKeyUrl: 'https://open.bigmodel.cn/',
     apiKeyHelp: '访问智谱AI开放平台获取API Key',
     pricing: '免费额度 + 按量计费',
@@ -50,7 +50,7 @@ export const PROVIDER_PRESETS = {
       { id: 'doubao-pro-128k', name: '豆包-Pro-128K', description: '超长文本' },
       { id: 'doubao-pro-256k', name: '豆包-Pro-256K', description: '最长文本支持' }
     ],
-    defaultModel: 'doubao-lite-4k',
+    defaultModel: 'doubao-pro-4k',
     apiKeyUrl: 'https://console.volcengine.com/ark',
     apiKeyHelp: '访问火山引擎控制台创建推理接入点',
     pricing: '按量计费',
@@ -77,7 +77,7 @@ export const PROVIDER_PRESETS = {
       { id: 'meta-llama/Llama-3.1-70B-Instruct', name: 'Llama-3.1-70B', description: 'Meta大模型' },
       { id: 'deepseek-ai/DeepSeek-V2.5', name: 'DeepSeek-V2.5', description: 'DeepSeek最新模型' }
     ],
-    defaultModel: 'Qwen/Qwen2.5-14B-Instruct',
+    defaultModel: 'Qwen/Qwen2.5-32B-Instruct',
     apiKeyUrl: 'https://siliconflow.cn/',
     apiKeyHelp: '访问硅基流动平台获取API Key',
     pricing: '免费额度 + 优惠价格',
@@ -103,7 +103,7 @@ export const PROVIDER_PRESETS = {
       { id: 'hunyuan-turbo', name: '混元-Turbo', description: '高速模型' },
       { id: 'hunyuan-functioncall', name: '混元-FunctionCall', description: '函数调用专用' }
     ],
-    defaultModel: 'hunyuan-lite',
+    defaultModel: 'hunyuan-turbo',
     apiKeyUrl: 'https://console.cloud.tencent.com/hunyuan',
     apiKeyHelp: '访问腾讯云控制台获取API Key',
     pricing: 'Lite版本免费',
@@ -130,7 +130,7 @@ export const PROVIDER_PRESETS = {
       { id: 'qwen2.5-32b-instruct', name: 'Qwen2.5-32B-Instruct', description: '中等参数版本' },
       { id: 'qwen-long', name: 'Qwen-Long', description: '长文本模型' }
     ],
-    defaultModel: 'qwen-turbo',
+    defaultModel: 'qwen2.5-72b-instruct',
     apiKeyUrl: 'https://bailian.console.aliyun.com/',
     apiKeyHelp: '访问阿里云百炼平台获取API Key',
     pricing: '按量计费',
@@ -154,7 +154,7 @@ export const PROVIDER_PRESETS = {
       { id: 'deepseek-coder', name: 'DeepSeek-Coder', description: '代码专用' },
       { id: 'deepseek-reasoner', name: 'DeepSeek-Reasoner', description: '推理增强模型' }
     ],
-    defaultModel: 'deepseek-chat',
+    defaultModel: 'deepseek-reasoner',
     apiKeyUrl: 'https://platform.deepseek.com/',
     apiKeyHelp: '访问DeepSeek平台获取API Key',
     pricing: '优惠价格',
@@ -164,58 +164,6 @@ export const PROVIDER_PRESETS = {
       '注册并登录账号',
       '在API Keys中创建密钥',
       '复制API Key到配置中'
-    ]
-  },
-
-  openai: {
-    id: 'openai',
-    name: 'OpenAI',
-    description: 'OpenAI的GPT翻译服务',
-    icon: '🤖',
-    url: 'https://api.openai.com/v1/chat/completions',
-    models: [
-      { id: 'gpt-4o-mini', name: 'GPT-4o-mini (推荐)', description: '高性价比最新模型' },
-      { id: 'gpt-4o', name: 'GPT-4o', description: '最新旗舰模型' },
-      { id: 'gpt-4-turbo', name: 'GPT-4-Turbo', description: '快速GPT-4' },
-      { id: 'gpt-3.5-turbo', name: 'GPT-3.5-Turbo', description: '经典模型' }
-    ],
-    defaultModel: 'gpt-4o-mini',
-    apiKeyUrl: 'https://platform.openai.com/api-keys',
-    apiKeyHelp: '访问OpenAI平台获取API Key',
-    pricing: '按量计费',
-    features: ['GPT模型', '高质量翻译', '全球服务'],
-    setupGuide: [
-      '访问 https://platform.openai.com/api-keys',
-      '创建API Key',
-      '复制API Key到配置中',
-      '注意：需要海外网络环境'
-    ]
-  },
-
-  claude: {
-    id: 'claude',
-    name: 'Claude',
-    description: 'Anthropic的Claude翻译服务',
-    icon: '🎭',
-    url: 'https://api.anthropic.com/v1/messages',
-    models: [
-      { id: 'claude-sonnet-4-20250514', name: 'Claude-4-Sonnet (推荐)', description: '最新一代平衡模型' },
-      { id: 'claude-opus-4-20250514', name: 'Claude-4-Opus', description: '最新一代最高质量' },
-      { id: 'claude-opus-4-1-20250805', name: 'Claude-4.1-Opus', description: '最强性能模型' },
-      { id: 'claude-3-7-sonnet-20250219', name: 'Claude-3.7-Sonnet', description: '3.x系列最新版' },
-      { id: 'claude-3-5-haiku-20241022', name: 'Claude-3.5-Haiku', description: '快速响应模型' },
-      { id: 'claude-3-haiku-20240307', name: 'Claude-3-Haiku', description: '经典快速模型' }
-    ],
-    defaultModel: 'claude-sonnet-4-20250514',
-    apiKeyUrl: 'https://console.anthropic.com/',
-    apiKeyHelp: '访问Anthropic控制台获取API Key',
-    pricing: '按量计费',
-    features: ['Claude模型', '安全可靠', '长文本支持'],
-    setupGuide: [
-      '访问 https://console.anthropic.com/',
-      '创建API Key',
-      '复制API Key到配置中',
-      '注意：需要海外网络环境'
     ]
   },
 
