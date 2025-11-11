@@ -1,5 +1,59 @@
 <template>
   <div class="provider-setup">
+    <!-- 已保存配置列表 -->
+    <div class="mb-6">
+      <h3 class="text-lg font-semibold mb-4 text-gray-800">{{ t('provider.savedConfigs') }}</h3>
+      <div v-if="savedApis.length > 0" class="space-y-2">
+        <div
+          v-for="api in savedApis"
+          :key="api.id"
+          @click="selectSavedApi(api)"
+          :class="[
+            'p-3 border rounded-lg cursor-pointer transition-all duration-200',
+            selectedApiId === api.id
+              ? 'border-blue-500 bg-blue-50'
+              : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+          ]"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <img
+                v-if="getProviderLogo(api.provider)"
+                :src="getProviderLogo(api.provider)"
+                :alt="api.name"
+                class="w-6 h-6 object-contain"
+              />
+              <span v-else class="text-xl">{{ getProviderIcon(api.provider) }}</span>
+              <div>
+                <p class="font-medium text-gray-800">{{ api.name }}</p>
+                <p class="text-sm text-gray-600">{{ api.model }}</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span
+                v-if="api.provider === 'custom'"
+                class="text-xs text-gray-500"
+              >
+                自定义
+              </span>
+              <button
+                @click.stop="deleteApiConfig(api.id)"
+                class="text-red-500 hover:text-red-700 p-1"
+                :title="t('common.delete')"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="text-sm text-gray-500 italic">
+        {{ t('provider.noSavedConfigs') }}
+      </div>
+    </div>
+
     <!-- 提供商选择 -->
     <div class="mb-6">
       <div class="flex justify-between items-center mb-4">
@@ -169,9 +223,9 @@
                   :key="model.id"
                   :value="model.id"
                 >
-                  {{ model.name }} - {{ model.description }}
+                  {{ t('provider.model.' + model.id) || model.name }} - {{ t('provider.model.' + model.id + '.desc') || model.description }}
                 </option>
-                <option value="custom">自定义模型...</option>
+                <option value="custom">{{ t('provider.model.custom-model') }}</option>
               </select>
               
               <!-- 自定义模型输入框 -->
@@ -317,7 +371,9 @@ export default {
       showApiKey: false,
       testing: false,
       testResult: null,
-      showSuccess: false
+      showSuccess: false,
+      savedApis: [],
+      selectedApiId: null
     };
   },
   computed: {
@@ -341,9 +397,89 @@ export default {
   },
   async mounted() {
     await this.initI18nLanguage();
+    await this.loadSavedApis();
     await this.loadCurrentConfig();
   },
   methods: {
+    // 加载已保存的配置
+    async loadSavedApis() {
+      try {
+        const settings = await chrome.storage.sync.get(['savedApis', 'selectedApiId']);
+        this.savedApis = settings.savedApis || [];
+        this.selectedApiId = settings.selectedApiId || null;
+      } catch (error) {
+        console.error('加载已保存配置失败:', error);
+      }
+    },
+
+    // 选择已保存的配置
+    selectSavedApi(apiConfig) {
+      this.selectedApiId = apiConfig.id;
+      this.selectedProvider = apiConfig.provider;
+      this.apiKey = apiConfig.apiKey;
+      this.customUrl = apiConfig.url || '';
+      this.customModel = apiConfig.model || '';
+      this.selectedModel = apiConfig.model || 'custom';
+      this.loadProviderConfig(apiConfig.provider);
+
+      // 更新选中的API
+      chrome.storage.sync.set({
+        selectedApiId: apiConfig.id,
+        selectedProvider: apiConfig.provider
+      });
+    },
+
+    // 删除已保存的配置
+    async deleteApiConfig(apiId) {
+      if (!confirm('确定要删除这个配置吗？')) return;
+
+      try {
+        const settings = await chrome.storage.sync.get(['savedApis']);
+        const savedApis = settings.savedApis || [];
+        const filteredApis = savedApis.filter(api => api.id !== apiId);
+
+        await chrome.storage.sync.set({
+          savedApis: filteredApis
+        });
+
+        // 如果删除的是当前选中的配置，清除选择
+        if (this.selectedApiId === apiId) {
+          this.selectedApiId = null;
+          this.selectedProvider = null;
+          this.apiKey = '';
+          this.selectedModel = '';
+          this.customUrl = '';
+          this.customModel = '';
+          this.customModelName = '';
+          await chrome.storage.sync.set({
+            selectedApiId: null,
+            selectedProvider: null
+          });
+        }
+
+        await this.loadSavedApis();
+        this.showSuccessMessage('删除成功！');
+      } catch (error) {
+        console.error('删除配置失败:', error);
+        alert('删除配置失败');
+      }
+    },
+
+    // 获取提供商图标
+    getProviderIcon(providerId) {
+      const provider = getProviderConfig(providerId);
+      return provider ? provider.icon : '⚙️';
+    },
+
+    // 显示成功消息
+    showSuccessMessage(message) {
+      this.showSuccess = true;
+      const originalText = message;
+      setTimeout(() => {
+        this.showSuccess = false;
+      }, 2000);
+    },
+
     // 初始化语言设置
     async initI18nLanguage() {
       try {
@@ -474,11 +610,17 @@ export default {
     async loadCurrentConfig() {
       try {
         const settings = await chrome.storage.sync.get(['selectedProvider', 'savedApis', 'selectedApiId']);
-        
+
+        // 更新已保存配置列表
+        if (settings.savedApis) {
+          this.savedApis = settings.savedApis;
+          this.selectedApiId = settings.selectedApiId || null;
+        }
+
         if (settings.selectedProvider) {
           this.selectedProvider = settings.selectedProvider;
         }
-        
+
         if (settings.savedApis && settings.selectedApiId) {
           const currentApi = settings.savedApis.find(api => api.id === settings.selectedApiId);
           if (currentApi) {
@@ -619,20 +761,22 @@ export default {
           config = createApiConfig(this.selectedProvider, this.apiKey, modelToUse);
         }
         
-        // 获取现有配置
+        // 获取现有配置并添加新配置
         const settings = await chrome.storage.sync.get(['savedApis']);
         const savedApis = settings.savedApis || [];
-        
-        // 移除同提供商的旧配置
-        const filteredApis = savedApis.filter(api => api.provider !== this.selectedProvider);
-        filteredApis.push(config);
+
+        // 直接添加新配置，不删除任何现有配置
+        savedApis.push(config);
 
         // 保存配置
         await chrome.storage.sync.set({
           selectedProvider: this.selectedProvider,
-          savedApis: filteredApis,
+          savedApis: savedApis,
           selectedApiId: config.id
         });
+
+        // 刷新已保存配置列表
+        await this.loadSavedApis();
 
         // 显示成功提示
         this.showSuccess = true;
