@@ -171,7 +171,7 @@
             </div>
             <p class="text-sm text-gray-500 mt-1">
               <a :href="currentProviderConfig?.apiKeyUrl" target="_blank" class="text-blue-600 hover:underline">
-                {{ currentProviderConfig?.apiKeyHelp }}
+                {{ t(currentProviderConfig?.apiKeyHelp) }}
               </a>
             </p>
           </div>
