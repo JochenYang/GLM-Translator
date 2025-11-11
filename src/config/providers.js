@@ -14,15 +14,7 @@ export const PROVIDER_PRESETS = {
       { id: 'glm-4.5-flash', name: 'GLM-4.5-Flash (推荐)', description: '4.5版本快速模型' },
       { id: 'glm-4.5-air', name: 'GLM-4.5-Air', description: '4.5版本轻量模型' },
       { id: 'glm-4.5', name: 'GLM-4.5', description: '4.5版本标准模型' },
-      { id: 'glm-4.5-plus', name: 'GLM-4.5-Plus', description: '4.5版本高质量模型' },
-      { id: 'glm-4.6', name: 'GLM-4.6', description: '最新版本模型' },
-      { id: 'glm-4-flash', name: 'GLM-4-Flash', description: '速度快，成本低' },
-      { id: 'glm-4-air', name: 'GLM-4-Air', description: '轻量级模型' },
-      { id: 'glm-4-airx', name: 'GLM-4-AirX', description: '增强版轻量模型' },
-      { id: 'glm-4', name: 'GLM-4', description: '平衡性能' },
-      { id: 'glm-4-plus', name: 'GLM-4-Plus', description: '高质量模型' },
-      { id: 'glm-4-long', name: 'GLM-4-Long', description: '长文本支持' },
-      { id: 'glm-4v', name: 'GLM-4V', description: '多模态模型' }
+      { id: 'glm-4.6', name: 'GLM-4.6', description: '最新版本模型' }
     ],
     defaultModel: 'glm-4.5-flash',
     apiKeyUrl: 'https://open.bigmodel.cn/',
@@ -45,13 +37,7 @@ export const PROVIDER_PRESETS = {
     url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
     models: [
       { id: 'doubao-1-5-pro-32k-250115', name: '豆包-1.5-Pro-32K (推荐)', description: '2025年最新32K模型' },
-      { id: 'doubao-1-5-pro-256k-250115', name: '豆包-1.5-Pro-256K', description: '2025年最新256K长文本' },
-      { id: 'doubao-lite-4k', name: '豆包-Lite-4K', description: '轻量级模型' },
-      { id: 'doubao-lite-32k', name: '豆包-Lite-32K', description: '长文本轻量版' },
-      { id: 'doubao-pro-4k', name: '豆包-Pro-4K', description: '专业级模型' },
-      { id: 'doubao-pro-32k', name: '豆包-Pro-32K', description: '长文本支持' },
-      { id: 'doubao-pro-128k', name: '豆包-Pro-128K', description: '超长文本' },
-      { id: 'doubao-pro-256k', name: '豆包-Pro-256K', description: '最长文本支持' }
+      { id: 'doubao-1-5-pro-256k-250115', name: '豆包-1.5-Pro-256K', description: '2025年最新256K长文本' }
     ],
     defaultModel: 'doubao-1-5-pro-32k-250115',
     apiKeyUrl: 'https://console.volcengine.com/ark',
@@ -76,13 +62,7 @@ export const PROVIDER_PRESETS = {
       { id: 'Qwen/Qwen3-8B', name: 'Qwen3-8B (推荐)', description: '通义千问最新模型' },
       { id: 'THUDM/GLM-Z1-9B-0414', name: 'GLM-Z1-9B-0414', description: '智谱最新9B参数模型' },
       { id: 'tencent/Hunyuan-MT-7B', name: 'Hunyuan-MT-7B', description: '腾讯混元翻译模型' },
-      { id: 'internlm/internlm2_5-7b-chat', name: 'internlm2_5-7B-Chat', description: '上海AI实验室模型' },
-      { id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen2.5-7B', description: '阿里通义千问模型' },
-      { id: 'Qwen/Qwen2.5-14B-Instruct', name: 'Qwen2.5-14B', description: '更强性能版本' },
-      { id: 'Qwen/Qwen2.5-32B-Instruct', name: 'Qwen2.5-32B', description: '大参数版本' },
-      { id: 'meta-llama/Llama-3.1-8B-Instruct', name: 'Llama-3.1-8B', description: 'Meta开源模型' },
-      { id: 'meta-llama/Llama-3.1-70B-Instruct', name: 'Llama-3.1-70B', description: 'Meta大模型' },
-      { id: 'deepseek-ai/DeepSeek-V2.5', name: 'DeepSeek-V2.5', description: 'DeepSeek最新模型' }
+      { id: 'internlm/internlm2_5-7b-chat', name: 'internlm2_5-7B-Chat', description: '上海AI实验室模型' }
     ],
     defaultModel: 'Qwen/Qwen3-8B',
     apiKeyUrl: 'https://siliconflow.cn/',
@@ -105,12 +85,7 @@ export const PROVIDER_PRESETS = {
     url: 'https://hunyuan.tencentcloudapi.com/v1/chat/completions',
     models: [
       { id: 'Hunyuan-MT-7B', name: 'Hunyuan-MT-7B (推荐)', description: '2025年最新翻译模型' },
-      { id: 'Hunyuan-MT-Chimera-7B', name: 'Hunyuan-MT-Chimera-7B', description: '2025年最新混血版' },
-      { id: 'hunyuan-lite', name: '混元-Lite', description: '免费模型' },
-      { id: 'hunyuan-standard', name: '混元-Standard', description: '标准模型' },
-      { id: 'hunyuan-pro', name: '混元-Pro', description: '专业模型' },
-      { id: 'hunyuan-turbo', name: '混元-Turbo', description: '高速模型' },
-      { id: 'hunyuan-functioncall', name: '混元-FunctionCall', description: '函数调用专用' }
+      { id: 'Hunyuan-MT-Chimera-7B', name: 'Hunyuan-MT-Chimera-7B', description: '2025年最新混血版' }
     ],
     defaultModel: 'Hunyuan-MT-7B',
     apiKeyUrl: 'https://console.cloud.tencent.com/hunyuan',
@@ -130,16 +105,16 @@ export const PROVIDER_PRESETS = {
     name: '阿里通义',
     description: '阿里云的通义千问翻译服务',
     icon: '☁️',
-    url: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+    url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
     models: [
-      { id: 'qwen-turbo', name: 'Qwen-Turbo (推荐)', description: '快速响应' },
-      { id: 'qwen-plus', name: 'Qwen-Plus', description: '平衡性能' },
-      { id: 'qwen-max', name: 'Qwen-Max', description: '最高质量' },
-      { id: 'qwen2.5-72b-instruct', name: 'Qwen2.5-72B-Instruct', description: '开源版本' },
-      { id: 'qwen2.5-32b-instruct', name: 'Qwen2.5-32B-Instruct', description: '中等参数版本' },
-      { id: 'qwen-long', name: 'Qwen-Long', description: '长文本模型' }
+      { id: 'qwen-mt-flash', name: 'Qwen-MT-Flash (推荐)', description: '2025年翻译快速模型' },
+      { id: 'qwen-mt-turbo', name: 'Qwen-MT-Turbo', description: '2025年翻译高速模型' },
+      { id: 'qwen-mt-plus', name: 'Qwen-MT-Plus', description: '2025年翻译高质量模型' },
+      { id: 'qwen3-max', name: 'Qwen3-Max', description: 'Qwen3最高质量' },
+      { id: 'qwen-plus-latest', name: 'Qwen-Plus-Latest', description: 'Qwen最新Plus版本' },
+      { id: 'qwen-flash', name: 'Qwen-Flash', description: 'Qwen快速模型' }
     ],
-    defaultModel: 'qwen2.5-72b-instruct',
+    defaultModel: 'qwen-mt-flash',
     apiKeyUrl: 'https://bailian.console.aliyun.com/',
     apiKeyHelp: '访问阿里云百炼平台获取API Key',
     pricing: '按量计费',
