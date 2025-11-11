@@ -761,12 +761,20 @@ export default {
           config = createApiConfig(this.selectedProvider, this.apiKey, modelToUse);
         }
         
-        // 获取现有配置并添加新配置
+        // 获取现有配置并去重添加
         const settings = await chrome.storage.sync.get(['savedApis']);
         const savedApis = settings.savedApis || [];
 
-        // 直接添加新配置，不删除任何现有配置
-        savedApis.push(config);
+        // 检查是否已存在相同provider的配置
+        const existingIndex = savedApis.findIndex(api => api.provider === this.selectedProvider);
+
+        if (existingIndex !== -1) {
+          // 替换已存在的配置
+          savedApis[existingIndex] = config;
+        } else {
+          // 添加新配置
+          savedApis.push(config);
+        }
 
         // 保存配置
         await chrome.storage.sync.set({
