@@ -7,7 +7,7 @@ export const PROVIDER_PRESETS = {
   glm: {
     id: 'glm',
     name: '智谱 GLM',
-    description: 'AI驱动的智能翻译服务，支持多种模型',
+    description: 'provider.desc.glm',
     icon: '🤖',
     url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
     models: [
@@ -18,7 +18,7 @@ export const PROVIDER_PRESETS = {
     ],
     defaultModel: 'glm-4.5-flash',
     apiKeyUrl: 'https://open.bigmodel.cn/',
-    apiKeyHelp: '访问智谱AI开放平台获取API Key',
+    apiKeyHelp: 'provider.apiKeyHelp.glm',
     pricing: '免费额度 + 按量计费',
     features: ['高质量翻译', '多语言支持', '快速响应'],
     setupGuide: [
@@ -32,7 +32,7 @@ export const PROVIDER_PRESETS = {
   volcengine: {
     id: 'volcengine',
     name: '火山引擎',
-    description: '字节跳动旗下的AI翻译服务',
+    description: 'provider.desc.volcengine',
     icon: '🌋',
     url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
     models: [
@@ -41,7 +41,7 @@ export const PROVIDER_PRESETS = {
     ],
     defaultModel: 'doubao-1-5-pro-32k-250115',
     apiKeyUrl: 'https://console.volcengine.com/ark',
-    apiKeyHelp: '访问火山引擎控制台创建推理接入点',
+    apiKeyHelp: 'provider.apiKeyHelp.volcengine',
     pricing: '按量计费',
     features: ['豆包模型', '长文本支持', '高并发'],
     setupGuide: [
@@ -55,7 +55,7 @@ export const PROVIDER_PRESETS = {
   siliconflow: {
     id: 'siliconflow',
     name: '硅基流动',
-    description: '提供开源模型的AI翻译服务',
+    description: 'provider.desc.siliconflow',
     icon: '💎',
     url: 'https://api.siliconflow.cn/v1/chat/completions',
     models: [
@@ -66,7 +66,7 @@ export const PROVIDER_PRESETS = {
     ],
     defaultModel: 'Qwen/Qwen3-8B',
     apiKeyUrl: 'https://siliconflow.cn/',
-    apiKeyHelp: '访问硅基流动平台获取API Key',
+    apiKeyHelp: 'provider.apiKeyHelp.siliconflow',
     pricing: '免费额度 + 优惠价格',
     features: ['开源模型', '价格优惠', '多模型选择'],
     setupGuide: [
@@ -80,7 +80,7 @@ export const PROVIDER_PRESETS = {
   hunyuan: {
     id: 'hunyuan',
     name: '腾讯混元',
-    description: '腾讯云的AI翻译服务',
+    description: 'provider.desc.hunyuan',
     icon: '🐧',
     url: 'https://hunyuan.tencentcloudapi.com/v1/chat/completions',
     models: [
@@ -89,7 +89,7 @@ export const PROVIDER_PRESETS = {
     ],
     defaultModel: 'Hunyuan-MT-7B',
     apiKeyUrl: 'https://console.cloud.tencent.com/hunyuan',
-    apiKeyHelp: '访问腾讯云控制台获取API Key',
+    apiKeyHelp: 'provider.apiKeyHelp.hunyuan',
     pricing: 'Lite版本免费',
     features: ['免费额度', '腾讯云服务', '稳定可靠'],
     setupGuide: [
@@ -103,7 +103,7 @@ export const PROVIDER_PRESETS = {
   tongyi: {
     id: 'tongyi',
     name: '阿里通义',
-    description: '阿里云的通义千问翻译服务',
+    description: 'provider.desc.tongyi',
     icon: '☁️',
     url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
     models: [
@@ -116,7 +116,7 @@ export const PROVIDER_PRESETS = {
     ],
     defaultModel: 'qwen-mt-flash',
     apiKeyUrl: 'https://bailian.console.aliyun.com/',
-    apiKeyHelp: '访问阿里云百炼平台获取API Key',
+    apiKeyHelp: 'provider.apiKeyHelp.tongyi',
     pricing: '按量计费',
     features: ['通义千问', '阿里云服务', '多模型支持'],
     setupGuide: [
@@ -130,7 +130,7 @@ export const PROVIDER_PRESETS = {
   deepseek: {
     id: 'deepseek',
     name: 'DeepSeek',
-    description: 'DeepSeek的AI翻译服务',
+    description: 'provider.desc.deepseek',
     icon: '🔍',
     url: 'https://api.deepseek.com/v1/chat/completions',
     models: [
@@ -140,7 +140,7 @@ export const PROVIDER_PRESETS = {
     ],
     defaultModel: 'deepseek-reasoner',
     apiKeyUrl: 'https://platform.deepseek.com/',
-    apiKeyHelp: '访问DeepSeek平台获取API Key',
+    apiKeyHelp: 'provider.apiKeyHelp.deepseek',
     pricing: '优惠价格',
     features: ['高性价比', '专业模型', '快速响应'],
     setupGuide: [
@@ -154,7 +154,7 @@ export const PROVIDER_PRESETS = {
   custom: {
     id: 'custom',
     name: '自定义API',
-    description: '配置兼容OpenAI格式的自定义翻译API',
+    description: 'provider.desc.custom',
     icon: '⚙️',
     url: '',
     models: [
@@ -162,7 +162,7 @@ export const PROVIDER_PRESETS = {
     ],
     defaultModel: 'custom-model',
     apiKeyUrl: '',
-    apiKeyHelp: '请输入您的自定义API地址和密钥',
+    apiKeyHelp: 'provider.apiKeyHelp.custom',
     pricing: '根据服务商而定',
     features: ['自定义配置', '灵活接入', '兼容OpenAI格式'],
     setupGuide: [

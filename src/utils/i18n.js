@@ -192,6 +192,13 @@ const translations = {
     'provider.feature.customConfig': '自定义配置',
     'provider.feature.flexible': '灵活接入',
     'provider.feature.openaiCompatible': '兼容OpenAI格式',
+    'provider.apiKeyHelp.glm': '访问智谱AI开放平台获取API Key',
+    'provider.apiKeyHelp.volcengine': '访问火山引擎控制台创建推理接入点',
+    'provider.apiKeyHelp.siliconflow': '访问硅基流动平台获取API Key',
+    'provider.apiKeyHelp.hunyuan': '访问腾讯云控制台获取API Key',
+    'provider.apiKeyHelp.tongyi': '访问阿里云百炼平台获取API Key',
+    'provider.apiKeyHelp.deepseek': '访问DeepSeek平台获取API Key',
+    'provider.apiKeyHelp.custom': '请输入您的自定义API地址和密钥',
 
     // Popup相关
     'popup.switchLanguages': '切换语言',
@@ -396,6 +403,13 @@ const translations = {
     'provider.feature.customConfig': 'Custom configuration',
     'provider.feature.flexible': 'Flexible integration',
     'provider.feature.openaiCompatible': 'OpenAI-compatible format',
+    'provider.apiKeyHelp.glm': 'Visit Zhipu AI Open Platform to get API Key',
+    'provider.apiKeyHelp.volcengine': 'Visit Volcengine Console to create inference endpoint',
+    'provider.apiKeyHelp.siliconflow': 'Visit SiliconFlow platform to get API Key',
+    'provider.apiKeyHelp.hunyuan': 'Visit Tencent Cloud Console to get API Key',
+    'provider.apiKeyHelp.tongyi': 'Visit Alibaba Cloud Bailian Platform to get API Key',
+    'provider.apiKeyHelp.deepseek': 'Visit DeepSeek platform to get API Key',
+    'provider.apiKeyHelp.custom': 'Please enter your custom API URL and credentials',
 
     // Popup related
     'popup.switchLanguages': 'Switch Languages',

@@ -570,7 +570,7 @@ export default {
         if (result && result.translatedText) {
           this.testResult = {
             success: true,
-            message: '连接成功！翻译测试通过'
+            message: this.t('provider.connectionSuccess')
           };
         } else {
           throw new Error('翻译结果为空');
@@ -578,7 +578,7 @@ export default {
       } catch (error) {
         this.testResult = {
           success: false,
-          message: `连接失败: ${error.message}`
+          message: this.t('provider.connectionFailed', { error: error.message })
         };
       } finally {
         this.testing = false;
