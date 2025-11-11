@@ -91,6 +91,16 @@ export async function translateText(text, from = "auto", to = "zh") {
     switch (provider) {
       case "glm":
         return await glmTranslate(text, from, to, config);
+      case "volcengine":
+        return await volcengineTranslate(text, from, to, config);
+      case "siliconflow":
+        return await siliconflowTranslate(text, from, to, config);
+      case "hunyuan":
+        return await hunyuanTranslate(text, from, to, config);
+      case "tongyi":
+        return await tongyiTranslate(text, from, to, config);
+      case "deepseek":
+        return await deepseekTranslate(text, from, to, config);
       case "custom":
         return await customTranslate(text, from, to, config);
       default:
@@ -174,6 +184,353 @@ async function glmTranslate(text, from, to, config) {
   }
 }
 
+// 火山引擎翻译
+async function volcengineTranslate(text, from, to, config) {
+  if (!config?.apiKey) {
+    throw new Error("请先配置火山引擎 API Key");
+  }
+
+  const strategies = ['standard', 'academic', 'technical', 'simple', 'roleplay'];
+
+  for (let i = 0; i < strategies.length; i++) {
+    try {
+      const strategy = strategies[i];
+      const systemPrompt = SYSTEM_PROMPTS[strategy](from, to);
+
+      const response = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: config.model || "doubao-1-5-pro-32k-250115",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: text }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error?.message || "翻译请求失败");
+      }
+
+      const translatedText = data.choices[0].message.content.trim();
+
+      if (containsRejectionPattern(translatedText)) {
+        if (i < strategies.length - 1) {
+          console.log(`策略 ${strategy} 被拒绝，尝试下一个策略`);
+          continue;
+        } else {
+          return {
+            originalText: text,
+            translatedText: "翻译服务暂时无法处理此内容，请尝试修改文本后重试",
+            from,
+            to,
+            strategy: 'fallback'
+          };
+        }
+      }
+
+      return {
+        originalText: text,
+        translatedText,
+        from,
+        to,
+        strategy
+      };
+
+    } catch (error) {
+      if (i === strategies.length - 1) {
+        throw error;
+      }
+      console.log(`策略 ${strategies[i]} 失败，尝试下一个策略:`, error.message);
+    }
+  }
+}
+
+// 硅基流动翻译
+async function siliconflowTranslate(text, from, to, config) {
+  if (!config?.apiKey) {
+    throw new Error("请先配置硅基流动 API Key");
+  }
+
+  const strategies = ['standard', 'academic', 'technical', 'simple', 'roleplay'];
+
+  for (let i = 0; i < strategies.length; i++) {
+    try {
+      const strategy = strategies[i];
+      const systemPrompt = SYSTEM_PROMPTS[strategy](from, to);
+
+      const response = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: config.model || "Qwen/Qwen3-8B",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: text }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error?.message || "翻译请求失败");
+      }
+
+      const translatedText = data.choices[0].message.content.trim();
+
+      if (containsRejectionPattern(translatedText)) {
+        if (i < strategies.length - 1) {
+          console.log(`策略 ${strategy} 被拒绝，尝试下一个策略`);
+          continue;
+        } else {
+          return {
+            originalText: text,
+            translatedText: "翻译服务暂时无法处理此内容，请尝试修改文本后重试",
+            from,
+            to,
+            strategy: 'fallback'
+          };
+        }
+      }
+
+      return {
+        originalText: text,
+        translatedText,
+        from,
+        to,
+        strategy
+      };
+
+    } catch (error) {
+      if (i === strategies.length - 1) {
+        throw error;
+      }
+      console.log(`策略 ${strategies[i]} 失败，尝试下一个策略:`, error.message);
+    }
+  }
+}
+
+// 腾讯混元翻译
+async function hunyuanTranslate(text, from, to, config) {
+  if (!config?.apiKey) {
+    throw new Error("请先配置腾讯混元 API Key");
+  }
+
+  const strategies = ['standard', 'academic', 'technical', 'simple', 'roleplay'];
+
+  for (let i = 0; i < strategies.length; i++) {
+    try {
+      const strategy = strategies[i];
+      const systemPrompt = SYSTEM_PROMPTS[strategy](from, to);
+
+      const response = await fetch("https://hunyuan.tencentcloudapi.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: config.model || "Hunyuan-MT-7B",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: text }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error?.message || "翻译请求失败");
+      }
+
+      const translatedText = data.choices[0].message.content.trim();
+
+      if (containsRejectionPattern(translatedText)) {
+        if (i < strategies.length - 1) {
+          console.log(`策略 ${strategy} 被拒绝，尝试下一个策略`);
+          continue;
+        } else {
+          return {
+            originalText: text,
+            translatedText: "翻译服务暂时无法处理此内容，请尝试修改文本后重试",
+            from,
+            to,
+            strategy: 'fallback'
+          };
+        }
+      }
+
+      return {
+        originalText: text,
+        translatedText,
+        from,
+        to,
+        strategy
+      };
+
+    } catch (error) {
+      if (i === strategies.length - 1) {
+        throw error;
+      }
+      console.log(`策略 ${strategies[i]} 失败，尝试下一个策略:`, error.message);
+    }
+  }
+}
+
+// 阿里通义翻译（不支持system role）
+async function tongyiTranslate(text, from, to, config) {
+  if (!config?.apiKey) {
+    throw new Error("请先配置阿里通义 API Key");
+  }
+
+  const strategies = ['standard', 'academic', 'technical', 'simple', 'roleplay'];
+
+  for (let i = 0; i < strategies.length; i++) {
+    try {
+      const strategy = strategies[i];
+      const systemPrompt = SYSTEM_PROMPTS[strategy](from, to);
+
+      // 阿里通义不支持system role，将system message合并到user message
+      const combinedPrompt = `${systemPrompt}\n\n${text}`;
+
+      const response = await fetch("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: config.model || "qwen-mt-flash",
+          messages: [
+            { role: "user", content: combinedPrompt }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error?.message || "翻译请求失败");
+      }
+
+      const translatedText = data.choices[0].message.content.trim();
+
+      if (containsRejectionPattern(translatedText)) {
+        if (i < strategies.length - 1) {
+          console.log(`策略 ${strategy} 被拒绝，尝试下一个策略`);
+          continue;
+        } else {
+          return {
+            originalText: text,
+            translatedText: "翻译服务暂时无法处理此内容，请尝试修改文本后重试",
+            from,
+            to,
+            strategy: 'fallback'
+          };
+        }
+      }
+
+      return {
+        originalText: text,
+        translatedText,
+        from,
+        to,
+        strategy
+      };
+
+    } catch (error) {
+      if (i === strategies.length - 1) {
+        throw error;
+      }
+      console.log(`策略 ${strategies[i]} 失败，尝试下一个策略:`, error.message);
+    }
+  }
+}
+
+// DeepSeek翻译
+async function deepseekTranslate(text, from, to, config) {
+  if (!config?.apiKey) {
+    throw new Error("请先配置 DeepSeek API Key");
+  }
+
+  const strategies = ['standard', 'academic', 'technical', 'simple', 'roleplay'];
+
+  for (let i = 0; i < strategies.length; i++) {
+    try {
+      const strategy = strategies[i];
+      const systemPrompt = SYSTEM_PROMPTS[strategy](from, to);
+
+      const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: config.model || "deepseek-reasoner",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: text }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error?.message || "翻译请求失败");
+      }
+
+      const translatedText = data.choices[0].message.content.trim();
+
+      if (containsRejectionPattern(translatedText)) {
+        if (i < strategies.length - 1) {
+          console.log(`策略 ${strategy} 被拒绝，尝试下一个策略`);
+          continue;
+        } else {
+          return {
+            originalText: text,
+            translatedText: "翻译服务暂时无法处理此内容，请尝试修改文本后重试",
+            from,
+            to,
+            strategy: 'fallback'
+          };
+        }
+      }
+
+      return {
+        originalText: text,
+        translatedText,
+        from,
+        to,
+        strategy
+      };
+
+    } catch (error) {
+      if (i === strategies.length - 1) {
+        throw error;
+      }
+      console.log(`策略 ${strategies[i]} 失败，尝试下一个策略:`, error.message);
+    }
+  }
+}
+
 // 自定义API翻译（增强版）
 async function customTranslate(text, from, to, config) {
   if (!config?.url || !config?.apiKey) {
@@ -186,7 +543,23 @@ async function customTranslate(text, from, to, config) {
     try {
       const strategy = strategies[i];
       const systemPrompt = SYSTEM_PROMPTS[strategy](from, to);
-      
+
+      // 检测是否阿里通义URL
+      const isTongyi = config.url.includes('dashscope.aliyuncs.com');
+
+      // 阿里通义不支持system role，合并到user message
+      const messages = isTongyi
+        ? [
+            {
+              role: "user",
+              content: `${systemPrompt}\n\n${text}`
+            }
+          ]
+        : [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: text }
+          ];
+
       const response = await fetch(config.url, {
         method: "POST",
         headers: {
@@ -196,10 +569,7 @@ async function customTranslate(text, from, to, config) {
         },
         body: JSON.stringify({
           model: config.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: text }
-          ],
+          messages,
           temperature: 0.1,
           max_tokens: 2000,
         }),
