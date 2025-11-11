@@ -37,7 +37,8 @@ export const PROVIDER_PRESETS = {
     url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
     models: [
       { id: 'doubao-1-5-pro-32k-250115', name: '豆包-1.5-Pro-32K (推荐)', description: '2025年最新32K模型' },
-      { id: 'doubao-1-5-pro-256k-250115', name: '豆包-1.5-Pro-256K', description: '2025年最新256K长文本' }
+      { id: 'doubao-1-5-pro-256k-250115', name: '豆包-1.5-Pro-256K', description: '2025年最新256K长文本' },
+      { id: 'doubao-1-5-lite-32k-250115', name: '豆包-1.5-Lite-32K', description: '2025年轻量32K模型' }
     ],
     defaultModel: 'doubao-1-5-pro-32k-250115',
     apiKeyUrl: 'https://console.volcengine.com/ark',
