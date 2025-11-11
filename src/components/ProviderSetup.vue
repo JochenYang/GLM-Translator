@@ -397,7 +397,6 @@ export default {
   },
   async mounted() {
     await this.initI18nLanguage();
-    await this.loadSavedApis();
     await this.loadCurrentConfig();
   },
   methods: {
@@ -413,20 +412,15 @@ export default {
     },
 
     // 选择已保存的配置
-    selectSavedApi(apiConfig) {
-      this.selectedApiId = apiConfig.id;
-      this.selectedProvider = apiConfig.provider;
-      this.apiKey = apiConfig.apiKey;
-      this.customUrl = apiConfig.url || '';
-      this.customModel = apiConfig.model || '';
-      this.selectedModel = apiConfig.model || 'custom';
-      this.loadProviderConfig(apiConfig.provider);
-
-      // 更新选中的API
-      chrome.storage.sync.set({
+    async selectSavedApi(apiConfig) {
+      // 更新选中的API到存储
+      await chrome.storage.sync.set({
         selectedApiId: apiConfig.id,
         selectedProvider: apiConfig.provider
       });
+
+      // 重新加载配置
+      await this.loadCurrentConfig();
     },
 
     // 删除已保存的配置
@@ -438,26 +432,21 @@ export default {
         const savedApis = settings.savedApis || [];
         const filteredApis = savedApis.filter(api => api.id !== apiId);
 
-        await chrome.storage.sync.set({
-          savedApis: filteredApis
-        });
-
         // 如果删除的是当前选中的配置，清除选择
         if (this.selectedApiId === apiId) {
-          this.selectedApiId = null;
-          this.selectedProvider = null;
-          this.apiKey = '';
-          this.selectedModel = '';
-          this.customUrl = '';
-          this.customModel = '';
-          this.customModelName = '';
           await chrome.storage.sync.set({
+            savedApis: filteredApis,
             selectedApiId: null,
             selectedProvider: null
           });
+        } else {
+          await chrome.storage.sync.set({
+            savedApis: filteredApis
+          });
         }
 
-        await this.loadSavedApis();
+        // 重新加载配置
+        await this.loadCurrentConfig();
         this.showSuccessMessage('删除成功！');
       } catch (error) {
         console.error('删除配置失败:', error);
@@ -784,7 +773,7 @@ export default {
         });
 
         // 刷新已保存配置列表
-        await this.loadSavedApis();
+        await this.loadCurrentConfig();
 
         // 显示成功提示
         this.showSuccess = true;
