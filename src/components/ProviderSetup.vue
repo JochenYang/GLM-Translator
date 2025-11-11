@@ -3,9 +3,9 @@
     <!-- 已保存配置列表 -->
     <div class="mb-6">
       <h3 class="text-lg font-semibold mb-4 text-gray-800">{{ t('provider.savedConfigs') }}</h3>
-      <div v-if="savedApis.length > 0" class="space-y-2">
+      <div v-if="localizedSavedApis.length > 0" class="space-y-2">
         <div
-          v-for="api in savedApis"
+          v-for="api in localizedSavedApis"
           :key="api.id"
           @click="selectSavedApi(api)"
           :class="[
@@ -26,7 +26,7 @@
               <span v-else class="text-xl">{{ getProviderIcon(api.provider) }}</span>
               <div>
                 <p class="font-medium text-gray-800">{{ api.name }}</p>
-                <p class="text-sm text-gray-600">{{ api.model }}</p>
+                <p class="text-sm text-gray-600">{{ api.localizedModelName }}</p>
               </div>
             </div>
             <div class="flex items-center space-x-2">
@@ -49,7 +49,7 @@
           </div>
         </div>
       </div>
-      <div v-else class="text-sm text-gray-500 italic">
+      <div v-else-if="savedApis.length === 0" class="text-sm text-gray-500 italic">
         {{ t('provider.noSavedConfigs') }}
       </div>
     </div>
@@ -373,7 +373,9 @@ export default {
       testResult: null,
       showSuccess: false,
       savedApis: [],
-      selectedApiId: null
+      selectedApiId: null,
+      // 语言依赖键，用于强制重新计算本地化数据
+      languageKey: Date.now()
     };
   },
   computed: {
@@ -385,6 +387,15 @@ export default {
     },
     localizedProviders() {
       return this.displayProviders.map(provider => this.getLocalizedProvider(provider));
+    },
+    // 计算属性：获取本地化后的已保存配置列表
+    localizedSavedApis() {
+      // 使用 languageKey 作为依赖，确保语言切换时重新计算
+      const key = this.languageKey;
+      return this.savedApis.map(api => ({
+        ...api,
+        localizedModelName: this.getLocalizedModelName(api.model)
+      }));
     }
   },
   watch: {
@@ -397,6 +408,8 @@ export default {
   },
   async mounted() {
     await this.initI18nLanguage();
+    // 初始化语言键
+    this.languageKey = Date.now();
     await this.loadCurrentConfig();
   },
   methods: {
@@ -474,18 +487,35 @@ export default {
       try {
         await initLanguage();
         this.currentLanguage = await getCurrentLanguage();
+        // 初始化时也设置语言键
+        this.languageKey = Date.now();
         this.setupLanguageListener();
-        console.log('ProviderSetup language initialized:', this.currentLanguage);
       } catch (error) {
         console.error('Failed to initialize language:', error);
       }
     },
 
     setupLanguageListener() {
-      setupLanguageListener((newLanguage) => {
+      setupLanguageListener(async (newLanguage) => {
         this.currentLanguage = newLanguage;
-        this.$forceUpdate();
-        console.log('ProviderSetup language changed to:', newLanguage);
+        // 更新语言键，触发 localizedSavedApis 重新计算
+        this.languageKey = Date.now();
+        // 重新加载配置
+        await this.loadCurrentConfig();
+        // 等待DOM更新
+        this.$nextTick(() => {
+          // 强制重新渲染
+          this.$forceUpdate();
+        });
+      });
+
+      // 额外监听所有存储变化，确保不遗漏
+      chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (namespace === 'sync' && changes.interfaceLanguage) {
+          this.currentLanguage = changes.interfaceLanguage.newValue;
+          this.languageKey = Date.now();
+          this.$forceUpdate();
+        }
       });
     },
 
@@ -652,7 +682,7 @@ export default {
 
       try {
         let tempConfig;
-        
+
         if (this.currentProviderConfig?.isCustom) {
           // 自定义API测试
           if (!this.customUrl || !this.customModel) {
@@ -663,7 +693,7 @@ export default {
             this.testing = false;
             return;
           }
-          
+
           tempConfig = {
             id: `test_${Date.now()}`,
             name: '测试配置',
@@ -684,11 +714,17 @@ export default {
             this.testing = false;
             return;
           }
-          
+
           tempConfig = createApiConfig(this.selectedProvider, this.apiKey, modelToUse);
         }
-        
-        // 保存临时配置
+
+        // **关键修复：使用临时存储，不影响已保存的配置**
+        // 先获取现有配置（不在这里保存）
+        const originalSettings = await chrome.storage.sync.get(['savedApis', 'selectedApiId']);
+        const originalSavedApis = originalSettings.savedApis || [];
+        const originalSelectedApiId = originalSettings.selectedApiId || null;
+
+        // 临时保存测试配置
         await chrome.storage.sync.set({
           selectedProvider: this.selectedProvider,
           savedApis: [tempConfig],
@@ -697,7 +733,13 @@ export default {
 
         // 测试翻译
         const result = await translateText('Hello', 'en', 'zh');
-        
+
+        // **重要：测试完成后立即恢复原始配置**
+        await chrome.storage.sync.set({
+          savedApis: originalSavedApis,
+          selectedApiId: originalSelectedApiId
+        });
+
         if (result && result.translatedText) {
           this.testResult = {
             success: true,
@@ -707,6 +749,17 @@ export default {
           throw new Error('翻译结果为空');
         }
       } catch (error) {
+        // **错误时也要恢复原始配置**
+        try {
+          const originalSettings = await chrome.storage.sync.get(['savedApis', 'selectedApiId']);
+          await chrome.storage.sync.set({
+            savedApis: originalSettings.savedApis || [],
+            selectedApiId: originalSettings.selectedApiId || null
+          });
+        } catch (restoreError) {
+          console.error('恢复配置失败:', restoreError);
+        }
+
         this.testResult = {
           success: false,
           message: this.t('provider.connectionFailed', { error: error.message })
@@ -780,8 +833,6 @@ export default {
         setTimeout(() => {
           this.showSuccess = false;
         }, 3000);
-
-        console.log('配置保存成功:', config);
       } catch (error) {
         console.error('保存配置失败:', error);
         alert('保存配置失败: ' + error.message);
@@ -822,9 +873,8 @@ export default {
           // 查找该提供商的已保存配置
           const providerApi = settings.savedApis.find(api => api.provider === providerId);
           if (providerApi) {
-            console.log('找到已保存的配置:', providerApi);
             this.apiKey = providerApi.apiKey;
-            
+
             if (providerId === 'custom') {
               this.customUrl = providerApi.url;
               this.customModel = providerApi.model;
@@ -832,25 +882,27 @@ export default {
               const providerConfig = getProviderConfig(providerId);
               if (providerConfig) {
                 const isPresetModel = providerConfig.models.some(model => model.id === providerApi.model);
-                console.log(`模型 ${providerApi.model} 是否为预设模型:`, isPresetModel);
-                
+
                 if (isPresetModel) {
                   this.selectedModel = providerApi.model;
-                  console.log('设置为预设模型:', providerApi.model);
                 } else {
                   this.selectedModel = 'custom';
                   this.customModelName = providerApi.model;
-                  console.log('设置为自定义模型:', providerApi.model);
                 }
               }
             }
-          } else {
-            console.log('未找到该提供商的已保存配置:', providerId);
           }
         }
       } catch (error) {
         console.error('加载提供商配置失败:', error);
       }
+    },
+
+    // 获取本地化的模型名称
+    getLocalizedModelName(modelId) {
+      const modelKey = `provider.model.${modelId}`;
+      const translated = this.t(modelKey);
+      return translated === modelKey ? modelId : translated;
     }
   }
 };
