@@ -148,17 +148,32 @@ export class SelectionTranslator {
     const selection = window.getSelection();
     const rect = selection.getRangeAt(0).getBoundingClientRect();
 
+    // 计算加载状态的位置，与最终结果保持一致
+    const viewportWidth = window.innerWidth;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    let left = scrollX + rect.left;
+    let top = scrollY + rect.bottom + 10;
+
+    if (left + 650 > viewportWidth + scrollX - 20) {
+      left = Math.max(scrollX + 20, scrollX + rect.right - 650);
+    }
+    if (left < scrollX + 20) {
+      left = scrollX + (viewportWidth - 650) / 2;
+    }
+
     container.style.cssText = `
       position: absolute;
-      top: ${window.scrollY + rect.bottom + 10}px;
-      left: ${window.scrollX + rect.left}px;
-      width: 300px;
-      max-width: 300px;
-      min-width: 250px;
+      top: ${top}px;
+      left: ${left}px;
+      width: 650px;
+      max-width: 700px;
+      min-width: 500px;
       background: white;
       border-radius: 12px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-      padding: 16px;
+      padding: 0;
       z-index: 999999;
       display: block;
       animation: glm-fade-in 0.2s ease-out;
@@ -173,10 +188,19 @@ export class SelectionTranslator {
         <div class="glm-translation-body">
           <div class="glm-translation-original"><strong>原文:</strong> ${originalText}</div>
           <div class="glm-translation-dividing"></div>
-          <div class="glm-translation-loading">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div class="glm-loading-spinner"></div>
-              <span>正在翻译，请稍候...</span>
+          <div class="glm-translation-columns">
+            <div class="glm-translation-column">
+              <div class="glm-translation-column-title">原文 (Original)</div>
+              <div class="glm-translation-column-content glm-translation-original-text">${originalText}</div>
+            </div>
+            <div class="glm-translation-column">
+              <div class="glm-translation-column-title">译文 (Translation)</div>
+              <div class="glm-translation-column-content glm-translation-loading">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="glm-loading-spinner"></div>
+                  <span>正在翻译，请稍候...</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -220,8 +244,8 @@ export class SelectionTranslator {
       document.body.appendChild(container);
     }
 
-    // 处理长文本，避免容器过大
-    const maxLength = 500;
+    // 处理长文本
+    const maxLength = 800;
     const truncatedOriginal = originalText.length > maxLength
       ? originalText.substring(0, maxLength) + '...'
       : originalText;
@@ -229,7 +253,7 @@ export class SelectionTranslator {
       ? translatedText.substring(0, maxLength) + '...'
       : translatedText;
 
-    // 设置翻译结果内容和样式
+    // 设置翻译结果内容和样式 - 使用双栏布局
     container.innerHTML = `
       <div class="glm-translation-content">
         <div class="glm-translation-header">
@@ -238,8 +262,16 @@ export class SelectionTranslator {
         </div>
         <div class="glm-translation-body">
           ${originalText !== truncatedOriginal ? `<div class="glm-translation-original"><strong>原文:</strong> ${truncatedOriginal}</div>` : ''}
-          <div class="glm-translation-dividing"></div>
-          <div class="glm-translation-result">${truncatedTranslated}</div>
+          <div class="glm-translation-columns">
+            <div class="glm-translation-column">
+              <div class="glm-translation-column-title">原文 (Original)</div>
+              <div class="glm-translation-column-content glm-translation-original-text">${truncatedOriginal}</div>
+            </div>
+            <div class="glm-translation-column">
+              <div class="glm-translation-column-title">译文 (Translation)</div>
+              <div class="glm-translation-column-content glm-translation-result-text">${truncatedTranslated}</div>
+            </div>
+          </div>
         </div>
         <div class="glm-translation-footer">
           <span class="glm-translation-lang">${this.getCurrentLanguageInfo()}</span>
@@ -251,7 +283,7 @@ export class SelectionTranslator {
     const selection = window.getSelection();
     const rect = selection.getRangeAt(0).getBoundingClientRect();
 
-    // 计算最佳显示位置，避免超出屏幕
+    // 计算最佳显示位置，考虑新的宽度(650px)
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const scrollX = window.scrollX;
@@ -262,22 +294,27 @@ export class SelectionTranslator {
     let top = scrollY + rect.bottom + 10;
 
     // 如果右侧空间不够，调整到左侧
-    if (left + 450 > viewportWidth + scrollX - 20) {
-      left = scrollX + rect.right - 450;
+    if (left + 650 > viewportWidth + scrollX - 20) {
+      left = Math.max(scrollX + 20, scrollX + rect.right - 650);
+    }
+
+    // 如果左侧空间不够且右侧也不够，使用居中显示
+    if (left < scrollX + 20) {
+      left = scrollX + (viewportWidth - 650) / 2;
     }
 
     // 如果底部空间不够，调整到上方
-    if (top + 200 > viewportHeight + scrollY - 20) {
-      top = scrollY + rect.top - 10;
+    if (top + 300 > viewportHeight + scrollY - 20) {
+      top = Math.max(scrollY + 20, scrollY + rect.top - 20);
     }
 
     container.style.cssText = `
       position: absolute;
       top: ${top}px;
       left: ${left}px;
-      width: 450px;
-      max-width: 450px;
-      min-width: 300px;
+      width: 650px;
+      max-width: 700px;
+      min-width: 500px;
       background: white;
       border-radius: 12px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
