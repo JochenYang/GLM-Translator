@@ -77,41 +77,122 @@
 #glm-translation-result {
   position: absolute;
   z-index: 999999;
-  max-width: 400px;
+  width: 450px;
+  max-width: 450px;
+  min-width: 300px;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 0;
   font-size: 14px;
   line-height: 1.5;
+  overflow: hidden;
 }
 
 .glm-translation-content {
   position: relative;
-  padding-right: 24px;
 }
 
-.glm-translation-text {
-  white-space: pre-wrap;
-  word-break: break-word;
+.glm-translation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.glm-translation-title {
+  font-weight: 600;
+  color: #1a73e8;
+  font-size: 14px;
 }
 
 .glm-translation-close {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 20px;
-  height: 20px;
-  line-height: 20px;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
   text-align: center;
   cursor: pointer;
   color: #666;
   font-size: 16px;
   border-radius: 50%;
-  background: #f5f5f5;
+  background: rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
 }
 
 .glm-translation-close:hover {
-  background: #e0e0e0;
+  background: rgba(0, 0, 0, 0.1);
   color: #333;
-} 
+}
+
+.glm-translation-body {
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.glm-translation-original {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #1a73e8;
+  font-size: 13px;
+  color: #666;
+}
+
+.glm-translation-original strong {
+  color: #333;
+  font-weight: 600;
+}
+
+.glm-translation-dividing {
+  height: 1px;
+  background: linear-gradient(to right, #e9ecef, #dee2e6, #e9ecef);
+  margin: 12px 0;
+}
+
+.glm-translation-result {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1a73e8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-weight: 500;
+}
+
+.glm-translation-footer {
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  text-align: right;
+}
+
+.glm-translation-lang {
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+}
+
+.glm-translation-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+  color: #666;
+}
+
+.glm-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #1a73e8;
+  border-radius: 50%;
+  animation: glm-spin 1s linear infinite;
+}
+
+@keyframes glm-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

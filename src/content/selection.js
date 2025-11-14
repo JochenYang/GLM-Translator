@@ -1,9 +1,12 @@
 import { getLanguageName } from "../common/languages.js";
+import { translateText } from "../services/translator.js";
 
 export class SelectionTranslator {
   constructor(config) {
     this.config = config;
     this.translationIcon = null;
+    this.translationCache = new Map();
+    this.translateTimeout = null;
     this.init();
   }
 
@@ -29,8 +32,16 @@ export class SelectionTranslator {
       return;
     }
 
+    // 清理之前的定时器
+    if (this.translateTimeout) {
+      clearTimeout(this.translateTimeout);
+    }
+
     if (this.config.general.selectionTrigger === "instant") {
-      this.translate(text);
+      // 添加防抖，防止频繁触发
+      this.translateTimeout = setTimeout(() => {
+        this.translate(text);
+      }, 300);
     } else if (this.config.general.selectionTrigger === "icon") {
       this.showTranslationIcon(event, text);
     }
@@ -80,6 +91,17 @@ export class SelectionTranslator {
   }
 
   async translate(text) {
+    // 检查缓存
+    const cacheKey = `${text}-${this.config.selectedProvider}-${this.config.providerConfig?.targetLang || 'zh'}`;
+    if (this.translationCache.has(cacheKey)) {
+      const cached = this.translationCache.get(cacheKey);
+      this.showTranslationResult(text, cached);
+      return;
+    }
+
+    // 显示加载状态
+    this.showLoadingState(text);
+
     try {
       let result;
       switch (this.config.selectedProvider) {
@@ -99,8 +121,14 @@ export class SelectionTranslator {
           throw new Error("未选择翻译服务");
       }
 
+      // 缓存翻译结果
+      this.translationCache.set(cacheKey, result);
+
       // 显示翻译结果
-      this.showTranslationResult(result);
+      this.showTranslationResult(text, result);
+
+      // 清理加载状态
+      this.hideLoadingState();
     } catch (error) {
       console.error("翻译失败:", error);
       // 显示错误提示
@@ -108,8 +136,82 @@ export class SelectionTranslator {
     }
   }
 
+  // 显示加载状态
+  showLoadingState(originalText) {
+    let container = document.getElementById("glm-translation-result");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "glm-translation-result";
+      document.body.appendChild(container);
+    }
+
+    const selection = window.getSelection();
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+
+    container.style.cssText = `
+      position: absolute;
+      top: ${window.scrollY + rect.bottom + 10}px;
+      left: ${window.scrollX + rect.left}px;
+      width: 300px;
+      max-width: 300px;
+      min-width: 250px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      padding: 16px;
+      z-index: 999999;
+      display: block;
+      animation: glm-fade-in 0.2s ease-out;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+
+    container.innerHTML = `
+      <div class="glm-translation-content">
+        <div class="glm-translation-header">
+          <span class="glm-translation-title">翻译中...</span>
+        </div>
+        <div class="glm-translation-body">
+          <div class="glm-translation-original"><strong>原文:</strong> ${originalText}</div>
+          <div class="glm-translation-dividing"></div>
+          <div class="glm-translation-loading">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="glm-loading-spinner"></div>
+              <span>正在翻译，请稍候...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // 添加加载动画样式
+    if (!document.getElementById('glm-loading-styles')) {
+      const style = document.createElement('style');
+      style.id = 'glm-loading-styles';
+      style.textContent = `
+        .glm-loading-spinner {
+          width: 16px;
+          height: 16px;
+          border: 2px solid #f3f3f3;
+          border-top: 2px solid #1a73e8;
+          border-radius: 50%;
+          animation: glm-spin 1s linear infinite;
+        }
+        @keyframes glm-spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }
+
+  // 隐藏加载状态
+  hideLoadingState() {
+    // 加载状态会在 showTranslationResult 中被覆盖
+  }
+
   // 添加翻译结果显示方法
-  showTranslationResult(result) {
+  showTranslationResult(originalText, translatedText) {
     // 创建或获取翻译结果容器
     let container = document.getElementById("glm-translation-result");
     if (!container) {
@@ -118,27 +220,111 @@ export class SelectionTranslator {
       document.body.appendChild(container);
     }
 
+    // 处理长文本，避免容器过大
+    const maxLength = 500;
+    const truncatedOriginal = originalText.length > maxLength
+      ? originalText.substring(0, maxLength) + '...'
+      : originalText;
+    const truncatedTranslated = translatedText.length > maxLength
+      ? translatedText.substring(0, maxLength) + '...'
+      : translatedText;
+
     // 设置翻译结果内容和样式
     container.innerHTML = `
       <div class="glm-translation-content">
-        <div class="glm-translation-text">${result}</div>
-        <div class="glm-translation-close">×</div>
+        <div class="glm-translation-header">
+          <span class="glm-translation-title">翻译结果</span>
+          <div class="glm-translation-close">×</div>
+        </div>
+        <div class="glm-translation-body">
+          ${originalText !== truncatedOriginal ? `<div class="glm-translation-original"><strong>原文:</strong> ${truncatedOriginal}</div>` : ''}
+          <div class="glm-translation-dividing"></div>
+          <div class="glm-translation-result">${truncatedTranslated}</div>
+        </div>
+        <div class="glm-translation-footer">
+          <span class="glm-translation-lang">${this.getCurrentLanguageInfo()}</span>
+        </div>
       </div>
     `;
 
     // 定位翻译结果框
     const selection = window.getSelection();
     const rect = selection.getRangeAt(0).getBoundingClientRect();
-    container.style.position = "absolute";
-    container.style.top = `${window.scrollY + rect.bottom + 10}px`;
-    container.style.left = `${window.scrollX + rect.left}px`;
-    container.style.display = "block";
+
+    // 计算最佳显示位置，避免超出屏幕
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    // 默认位置
+    let left = scrollX + rect.left;
+    let top = scrollY + rect.bottom + 10;
+
+    // 如果右侧空间不够，调整到左侧
+    if (left + 450 > viewportWidth + scrollX - 20) {
+      left = scrollX + rect.right - 450;
+    }
+
+    // 如果底部空间不够，调整到上方
+    if (top + 200 > viewportHeight + scrollY - 20) {
+      top = scrollY + rect.top - 10;
+    }
+
+    container.style.cssText = `
+      position: absolute;
+      top: ${top}px;
+      left: ${left}px;
+      width: 450px;
+      max-width: 450px;
+      min-width: 300px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      padding: 0;
+      z-index: 999999;
+      display: block;
+      animation: glm-fade-in 0.2s ease-out;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+
+    // 添加动画样式
+    if (!document.getElementById('glm-translation-styles')) {
+      const style = document.createElement('style');
+      style.id = 'glm-translation-styles';
+      style.textContent = `
+        @keyframes glm-fade-in {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     // 添加关闭按钮事件
     const closeBtn = container.querySelector(".glm-translation-close");
     closeBtn.onclick = () => {
       container.style.display = "none";
     };
+
+    // 添加点击外部关闭功能
+    const clickOutsideHandler = (e) => {
+      if (!container.contains(e.target)) {
+        container.style.display = "none";
+        document.removeEventListener('click', clickOutsideHandler);
+      }
+    };
+    // 延迟绑定，防止立即触发
+    setTimeout(() => {
+      document.addEventListener('click', clickOutsideHandler);
+    }, 100);
+  }
+
+  // 获取当前语言信息
+  getCurrentLanguageInfo() {
+    const targetLang = this.config.providerConfig?.targetLang || "zh";
+    const sourceLang = this.config.providerConfig?.sourceLang || "auto";
+    return `从 ${sourceLang} → ${targetLang}`;
   }
 
   showError(message) {
