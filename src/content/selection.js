@@ -1,3 +1,5 @@
+import { getLanguageName } from "../common/languages.js";
+
 export class SelectionTranslator {
   constructor(config) {
     this.config = config;
@@ -204,6 +206,10 @@ export class SelectionTranslator {
 
   async translateWithGLM(text) {
     try {
+      // 获取用户设置的目标语言
+      const targetLang = this.config.providerConfig.targetLang || "zh";
+      const targetLanguageName = getLanguageName(targetLang);
+
       const response = await fetch(this.config.providerConfig.apiEndpoint, {
         method: "POST",
         headers: {
@@ -215,7 +221,7 @@ export class SelectionTranslator {
           messages: [
             {
               role: "user",
-              content: `请将以下文本翻译成中文：\n${text}`,
+              content: `请将以下文本翻译成${targetLanguageName}：\n${text}`,
             },
           ],
         }),
@@ -235,6 +241,10 @@ export class SelectionTranslator {
 
   async translateWithCustom(text) {
     try {
+      // 获取用户设置的目标语言
+      const targetLang = this.config.providerConfig.targetLang || "zh";
+      const targetLanguageName = getLanguageName(targetLang);
+
       const response = await fetch(this.config.providerConfig.url, {
         method: "POST",
         headers: {
@@ -246,7 +256,7 @@ export class SelectionTranslator {
           messages: [
             {
               role: "user",
-              content: `请将以下文本翻译成中文：\n${text}`,
+              content: `请将以下文本翻译成${targetLanguageName}：\n${text}`,
             },
           ],
         }),
