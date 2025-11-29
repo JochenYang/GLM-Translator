@@ -18,13 +18,41 @@ const DEFAULT_API_TEMPLATES = {
 
 // 敏感内容检测关键词（更全面）
 const SENSITIVE_PATTERNS = [
-  "不适当", "不道德", "违反公序良俗", "色情", "无法为你提供", 
+  "不适当", "不道德", "违反公序良俗", "色情", "无法为你提供",
   "我不能为你翻译", "倡导积极健康", "成人影片", "低俗信息",
   "不适合传播", "建议远离", "抱歉，我无法", "提供此类内容",
   "违反社区准则", "不符合道德", "涉及敏感", "不当内容",
   "违规内容", "敏感信息", "不合适", "我无法翻译", "拒绝翻译",
   "不能提供", "无法完成", "sorry", "cannot", "refuse", "inappropriate"
 ];
+
+// 简单语言检测函数
+function detectLanguage(text) {
+  if (!text) return 'unknown';
+
+  // 检测中文
+  const chineseRegex = /[\u4e00-\u9fff]/;
+  if (chineseRegex.test(text)) return 'zh';
+
+  // 检测日语（平假名和片假名）
+  const japaneseRegex = /[\u3040-\u30ff\u31f0-\u31ff\uFF66-\uFF9F\u4E00-\u9FAF]/;
+  if (japaneseRegex.test(text)) return 'ja';
+
+  // 检测韩语
+  const koreanRegex = /[\uac00-\ud7af]/;
+  if (koreanRegex.test(text)) return 'ko';
+
+  // 检测俄语
+  const russianRegex = /[\u0400-\u04FF]/;
+  if (russianRegex.test(text)) return 'ru';
+
+  // 检测阿拉伯语
+  const arabicRegex = /[\u0600-\u06FF]/;
+  if (arabicRegex.test(text)) return 'ar';
+
+  // 默认返回英语（最常见）
+  return 'en';
+}
 
 // 多种系统提示词策略
 const SYSTEM_PROMPTS = {
@@ -289,7 +317,9 @@ async function siliconflowTranslate(text, from, to, config) {
   for (let i = 0; i < strategies.length; i++) {
     try {
       const strategy = strategies[i];
-      const systemPrompt = SYSTEM_PROMPTS[strategy](from, to);
+      // 对于硅基流动，使用智能语言检测，不支持"auto"
+      const actualFrom = from === 'auto' ? detectLanguage(text) : from;
+      const systemPrompt = SYSTEM_PROMPTS[strategy](actualFrom, to);
 
       const response = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
         method: "POST",

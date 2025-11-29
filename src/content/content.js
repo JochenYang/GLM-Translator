@@ -146,7 +146,8 @@ async function handleSelection(event) {
   lastSelectedText = text;
 
   try {
-    if (!chrome.storage || !chrome.storage.sync) {
+    // 检查Chrome storage是否可用
+    if (!chrome?.storage?.sync) {
       console.warn("Chrome storage not available");
       return;
     }
@@ -327,10 +328,11 @@ function showPopup(x, y) {
     top: "0",
     zIndex: "2147483647",
     backgroundColor: "white",
-    borderRadius: "8px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-    minWidth: "250px",
-    maxWidth: "800px",
+    borderRadius: "12px",
+    boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+    minWidth: "320px",
+    maxWidth: "480px",
+    width: "420px",
     border: "none",
     overflow: "hidden",
     padding: "0",
@@ -566,7 +568,7 @@ async function translateText(text) {
     adjustIframeHeight(iframe);
 
     // 获取设置中的语言
-    if (!chrome.storage || !chrome.storage.sync) {
+    if (!chrome?.storage?.sync) {
       console.warn("Chrome storage not available");
       return;
     }
