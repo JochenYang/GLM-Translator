@@ -930,20 +930,8 @@ async function translateText(text) {
         <div class="result">${response.translatedText}</div>
       `;
     } else if (response && response.error) {
-      // 处理特定类型的错误信息，提供更友好的反馈
-      let errorMessage = response.error;
-      // 检查是否包含敏感内容相关的错误信息
-      if (
-        response.error.includes("无法完成翻译") ||
-        response.error.includes("不适当") ||
-        response.error.includes("色情") ||
-        response.error.includes("违反公序良俗")
-      ) {
-        errorMessage = "翻译服务遇到了问题，请尝试修改文本内容后重新翻译。";
-      }
-
       doc.body.innerHTML = `
-        <div class="error">${errorMessage}</div>
+        <div class="error">${response.error}</div>
       `;
     } else {
       doc.body.innerHTML = `
@@ -967,19 +955,8 @@ async function translateText(text) {
         if (iframe) {
           const doc = iframe.contentDocument || iframe.contentWindow.document;
 
-          // 检查是否包含敏感内容相关的错误信息
-          let errorMessage = error.message || "未知错误";
-          if (
-            errorMessage.includes("无法完成翻译") ||
-            errorMessage.includes("不适当") ||
-            errorMessage.includes("色情") ||
-            errorMessage.includes("违反公序良俗")
-          ) {
-            errorMessage = "翻译服务遇到了问题，请尝试修改文本内容后重新翻译。";
-          }
-
           doc.body.innerHTML = `
-            <div class="error">${errorMessage}</div>
+            <div class="error">${error.message || "未知错误"}</div>
           `;
           adjustIframeHeight(iframe);
         }
