@@ -6,7 +6,7 @@
       <div class="flex items-center flex-1">
         <!-- 源语言选择 -->
         <select v-model="sourceLang" class="language-select">
-          <option value="auto">{{ t('lang.auto') }}</option>
+          <option value="auto">{{ translate("lang.auto") }}</option>
           <optgroup
             v-for="(langs, letter) in groupedLanguages"
             :key="letter"
@@ -26,7 +26,7 @@
         <button
           class="language-switch"
           @click="switchLanguages"
-          :title="t('popup.switchLanguages')"
+          :title="translate('popup.switchLanguages')"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -57,7 +57,11 @@
       </div>
 
       <!-- 设置按钮 -->
-      <button class="settings-btn" @click="openSettings" :title="t('popup.settings')">
+      <button
+        class="settings-btn"
+        @click="openSettings"
+        :title="translate('popup.settings')"
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -67,7 +71,9 @@
           class="settings-icon"
         >
           <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+          ></path>
         </svg>
       </button>
     </div>
@@ -79,7 +85,7 @@
         <textarea
           v-model="inputText"
           class="input-area"
-          :placeholder="t('popup.inputPlaceholder')"
+          :placeholder="translate('popup.inputPlaceholder')"
           maxlength="5000"
           @input="handleInput"
           ref="inputTextarea"
@@ -97,9 +103,15 @@
           <div v-if="translatedText" class="result-text">
             {{ translatedText }}
           </div>
-          <div v-else class="empty-result">{{ t('popup.emptyResult') }}</div>
+          <div v-else class="empty-result">
+            {{ translate("popup.emptyResult") }}
+          </div>
           <div v-if="translatedText" class="result-actions">
-            <button class="action-btn" @click="copyText" :title="t('popup.copyTranslation')">
+            <button
+              class="action-btn"
+              @click="copyText"
+              :title="translate('popup.copyTranslation')"
+            >
               <svg viewBox="0 0 24 24" class="action-icon">
                 <path
                   fill="currentColor"
@@ -117,7 +129,13 @@
 <script>
 import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { allLanguages } from "../common/languages";
-import { initLanguage, getCurrentLanguage, t, getLanguageDisplayName, setupLanguageListener } from "../utils/i18n.js";
+import {
+  initLanguage,
+  getCurrentLanguage,
+  t,
+  getLanguageDisplayName,
+  setupLanguageListener,
+} from "../utils/i18n.js";
 
 export default {
   name: "Popup",
@@ -129,6 +147,22 @@ export default {
     const languages = ref(allLanguages);
     const inputTextarea = ref(null);
     const resultArea = ref(null);
+    const currentLanguage = ref("zh");
+    const forceUpdateKey = ref(0); // 用于强制更新的键
+
+    // 创建响应式的翻译函数
+    const translate = (key, params = {}) => {
+      // 触发 forceUpdateKey 的读取，建立依赖关系
+      forceUpdateKey.value;
+      const result = t(key, params);
+      // 调试日志（可以在生产环境中移除）
+      if (key === "lang.auto") {
+        console.log(
+          `translate('${key}') = '${result}', forceUpdateKey=${forceUpdateKey.value}`
+        );
+      }
+      return result;
+    };
 
     // 拼音首字母映射
     const pinyinMap = {
@@ -516,9 +550,40 @@ export default {
       chrome.runtime.openOptionsPage();
     };
 
+    // 初始化语言设置
+    const initI18nLanguage = async () => {
+      try {
+        await initLanguage();
+        currentLanguage.value = await getCurrentLanguage();
+        console.log("Popup language initialized:", currentLanguage.value);
+        // 使用 nextTick 确保在 DOM 更新后触发
+        await nextTick();
+        forceUpdateKey.value++; // 初始化后触发一次更新，确保使用正确的语言
+        console.log(
+          "Force update triggered, forceUpdateKey:",
+          forceUpdateKey.value
+        );
+      } catch (error) {
+        console.error("Failed to initialize language:", error);
+      }
+    };
+
+    // 设置语言监听器
+    const setupI18nLanguageListener = () => {
+      setupLanguageListener((newLanguage) => {
+        currentLanguage.value = newLanguage;
+        forceUpdateKey.value++; // 增加键值，触发所有使用 translate 的地方重新计算
+        console.log("Popup language changed to:", newLanguage);
+      });
+    };
+
     // 组件挂载时加载设置
     onMounted(async () => {
       try {
+        // 初始化语言
+        await initI18nLanguage();
+        setupI18nLanguageListener();
+
         const settings = await chrome.storage.sync.get(["general"]);
 
         // 加载保存的语言设置
@@ -579,7 +644,8 @@ export default {
       openSettings,
       inputTextarea,
       resultArea,
-      t,
+      currentLanguage,
+      translate,
       getLanguageDisplayName,
     };
   },
