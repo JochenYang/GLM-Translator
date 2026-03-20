@@ -27,7 +27,8 @@
   "pnpm": {
     "overrides": {
       "rollup": "^4.28.0",
-      "esbuild": "^0.25.0"
+      "esbuild": "^0.25.0",
+      "undici": "^7.24.0"
     }
   }
 }
