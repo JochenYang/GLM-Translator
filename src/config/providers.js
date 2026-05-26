@@ -152,6 +152,29 @@ export const PROVIDER_PRESETS = {
     ]
   },
 
+  microsoft: {
+    id: 'microsoft',
+    name: '微软免费翻译',
+    description: 'provider.desc.microsoft',
+    icon: '🇲',
+    url: '',
+    models: [
+      { id: 'microsoft-free', name: '微软免费翻译 (无需配置)', description: '基于 Edge 内置翻译，开箱即用' }
+    ],
+    defaultModel: 'microsoft-free',
+    apiKeyUrl: '',
+    apiKeyHelp: 'provider.apiKeyHelp.microsoft',
+    pricing: 'provider.pricing.microsoft',
+    features: ['provider.feature.microsoftFree', 'provider.feature.microsoftSmartRetry'],
+    noApiKeyRequired: true,
+    setupGuide: [
+      '选择"微软免费翻译"即可使用',
+      '无需任何 API Key 或配置',
+      'Token 额度用尽后自动刷新，无需人工干预',
+      '基于 Edge 内置同款翻译引擎'
+    ]
+  },
+
   custom: {
     id: 'custom',
     name: '自定义API',
@@ -189,6 +212,7 @@ export function getAllProviders() {
 // 获取推荐提供商（中国大陆用户友好）
 export function getRecommendedProviders() {
   return [
+    PROVIDER_PRESETS.microsoft, // 免费方案排第一
     PROVIDER_PRESETS.glm,
     PROVIDER_PRESETS.volcengine,
     PROVIDER_PRESETS.siliconflow,

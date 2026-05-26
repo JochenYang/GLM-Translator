@@ -3,6 +3,7 @@
  * 支持多种AI翻译服务，强化敏感内容处理
  */
 import { getStorage, setStorage } from "../utils/storage.js";
+import { translate as microsoftTranslate } from "./microsoftTranslate.js";
 
 // 默认API配置模板
 const DEFAULT_API_TEMPLATES = {
@@ -176,6 +177,8 @@ export async function translateText(text, from = "auto", to = "zh") {
 
   try {
     switch (provider) {
+      case "microsoft":
+        return await microsoftTranslate(processedText, from, to);
       case "glm":
         return await glmTranslate(processedText, from, to, config);
       case "volcengine":

@@ -190,8 +190,24 @@
       </h3>
       <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
         <div class="space-y-4">
-          <!-- API Key输入 -->
-          <div>
+          <!-- 无需 API Key 的提示（如微软免费翻译） -->
+          <div v-if="currentProviderConfig?.noApiKeyRequired" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <div class="flex items-start space-x-3">
+              <svg class="w-5 h-5 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <div>
+                <p class="font-medium text-green-800">{{ t("provider.microsoftFree") }}</p>
+                <p class="text-sm text-green-700 mt-1">{{ t("provider.microsoftFreeDesc") }}</p>
+                <p class="text-sm text-green-600 mt-1">
+                  {{ t("provider.todayUsed") }}：<span class="font-medium">{{ usageStats.todayCount || 0 }}</span> 次
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- API Key输入（需要 API Key 的提供商） -->
+          <div v-if="!currentProviderConfig?.noApiKeyRequired">
             <label class="block text-sm font-medium text-gray-700 mb-2">
               {{ t("translate.apiKey") }}
               <span class="text-red-500">*</span>
@@ -271,8 +287,8 @@
             </p>
           </div>
 
-          <!-- 模型选择 -->
-          <div>
+          <!-- 模型选择（无需 API Key 的提供商不显示） -->
+          <div v-if="!currentProviderConfig?.noApiKeyRequired">
             <label class="block text-sm font-medium text-gray-700 mb-2">
               {{ t("translate.modelSelection") }}
             </label>
@@ -332,7 +348,7 @@
           <div class="flex items-center space-x-4">
             <button
               @click="testConnection"
-              :disabled="!apiKey || testing"
+              :disabled="(currentProviderConfig?.noApiKeyRequired ? false : !apiKey) || testing"
               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
             >
               <span v-if="testing">{{ t("provider.testing") }}</span>
@@ -381,7 +397,7 @@
           <div class="pt-4 border-t border-gray-200">
             <button
               @click="saveConfig"
-              :disabled="!apiKey"
+              :disabled="currentProviderConfig?.noApiKeyRequired ? false : !apiKey"
               class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
             >
               {{ t("provider.saveConfig") }}
@@ -479,6 +495,7 @@ import {
   createApiConfig,
 } from "../config/providers.js";
 import { translateText } from "../services/translator.js";
+import { testConnection as testMicrosoftConnection, getUsageStatsAPI } from "../services/microsoftTranslate.js";
 import {
   initLanguage,
   getCurrentLanguage,
@@ -509,6 +526,7 @@ export default {
       selectedApiId: null,
       // 语言依赖键，用于强制重新计算本地化数据
       languageKey: Date.now(),
+      usageStats: { todayCount: 0, date: "" },
     };
   },
   computed: {
@@ -553,6 +571,7 @@ export default {
     // 初始化语言键
     this.languageKey = Date.now();
     await this.loadCurrentConfig();
+    await this.loadUsage();
   },
   methods: {
     // 加载已保存的配置
@@ -579,6 +598,11 @@ export default {
 
       // 重新加载配置
       await this.loadCurrentConfig();
+
+      // 如果是微软翻译，加载用量统计
+      if (apiConfig.provider === 'microsoft') {
+        await this.loadUsage();
+      }
     },
 
     // 删除已保存的配置
@@ -609,6 +633,17 @@ export default {
       } catch (error) {
         console.error("删除配置失败:", error);
         alert("删除配置失败");
+      }
+    },
+
+    // 加载微软翻译用量统计
+    async loadUsage() {
+      if (this.selectedProvider === 'microsoft') {
+        try {
+          this.usageStats = await getUsageStatsAPI();
+        } catch (error) {
+          console.error('加载用量统计失败:', error);
+        }
       }
     },
 
@@ -686,6 +721,7 @@ export default {
         hunyuan: chrome.runtime.getURL("icons/tengxunhunyuan.png"),
         tongyi: chrome.runtime.getURL("icons/tongyiqianwen.png"),
         deepseek: chrome.runtime.getURL("icons/deepseek.png"),
+        microsoft: chrome.runtime.getURL("icons/microsoft.png"),
         custom: chrome.runtime.getURL("icons/custom.png"),
       };
       return logoMap[providerId] || null;
@@ -830,10 +866,28 @@ export default {
     },
 
     async testConnection() {
-      if (!this.apiKey || !this.selectedProvider) return;
-
       this.testing = true;
       this.testResult = null;
+
+      // 微软免费翻译：无需 API Key，走专用测试逻辑
+      if (this.selectedProvider === 'microsoft') {
+        try {
+          this.testResult = await testMicrosoftConnection();
+          if (this.testResult.success) {
+            await this.loadUsage();
+          }
+        } catch (error) {
+          this.testResult = { success: false, message: error.message };
+        } finally {
+          this.testing = false;
+        }
+        return;
+      }
+
+      if (!this.apiKey || !this.selectedProvider) {
+        this.testing = false;
+        return;
+      }
 
       try {
         let tempConfig;
@@ -937,7 +991,20 @@ export default {
     },
 
     async saveConfig() {
-      if (!this.apiKey || !this.selectedProvider) return;
+      if (!this.selectedProvider) return;
+
+      // 微软免费翻译：无需配置，直接标记为已选择
+      if (this.selectedProvider === 'microsoft') {
+        await chrome.storage.sync.set({
+          selectedProvider: 'microsoft',
+          selectedApiId: null,          // 清掉旧配置选中标记，防止 reload 时被 savedApis 覆盖
+        });
+        this.showSuccess = true;
+        setTimeout(() => { this.showSuccess = false; }, 3000);
+        return;
+      }
+
+      if (!this.apiKey) return;
 
       try {
         let config;

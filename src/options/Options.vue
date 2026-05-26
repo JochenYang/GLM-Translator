@@ -262,7 +262,7 @@ export default {
   data() {
     return {
       activeTab: "provider",
-      version: "1.2.2",
+      version: chrome.runtime.getManifest().version,
       logoUrl: chrome.runtime.getURL("icons/icon48.png"),
       languages: allLanguages,
       currentLanguage: "zh",
