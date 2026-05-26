@@ -5,7 +5,7 @@
 ![GLM Translator Logo](public/icons/icon128.png)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.1-brightgreen.svg)]()
+[![Version](https://img.shields.io/badge/version-1.2.5-brightgreen.svg)]()
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue.svg?logo=google-chrome)]()
 [![AI Powered](https://img.shields.io/badge/AI-Powered-orange.svg)]()
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D.svg?logo=vue.js)](https://vuejs.org/)
@@ -153,7 +153,20 @@ npm run build
 
 ## 📊 更新日志 & 未来计划
 
-### v1.2.2 (Latest) ✨
+### v1.2.5 (Latest) ✨
+- [x] 修复划词翻译 XSS 安全漏洞（innerHTML 转义）
+- [x] 修复 Popup 窗口 ResizeObserver 内存泄漏
+- [x] 抽取公共翻译逻辑，消除 handleTranslate/handleInput 代码重复
+- [x] 翻译结果区添加加载动画 spinner
+- [x] 清理生产环境 console.log 调试日志
+- [x] 拼音映射表提取为独立模块（pinyin.js）
+
+### v1.2.4
+- [x] 接入微软免费翻译服务（无须 API Key）
+- [x] 优化提供商 UI：绿色提示卡"无需 API Key"
+- [x] 修复保存设置后刷新页面被旧配置覆盖问题
+
+### v1.2.3
 - [x] 升级至商业级AI翻译扩展
 - [x] 新增8个主流AI翻译服务商支持
 - [x] 更新所有模型至2025年最新版本

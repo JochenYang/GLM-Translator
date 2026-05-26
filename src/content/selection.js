@@ -1,6 +1,13 @@
 import { getLanguageName } from "../common/languages.js";
 import { translateText } from "../services/translator.js";
 
+// HTML 转义工具函数 - XSS 防护
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 export class SelectionTranslator {
   constructor(config) {
     this.config = config;
@@ -186,12 +193,12 @@ export class SelectionTranslator {
           <span class="glm-translation-title">翻译中...</span>
         </div>
         <div class="glm-translation-body">
-          <div class="glm-translation-original"><strong>原文:</strong> ${originalText}</div>
+          <div class="glm-translation-original"><strong>原文:</strong> ${escapeHtml(originalText)}</div>
           <div class="glm-translation-dividing"></div>
           <div class="glm-translation-columns">
             <div class="glm-translation-column">
               <div class="glm-translation-column-title">原文 (Original)</div>
-              <div class="glm-translation-column-content glm-translation-original-text">${originalText}</div>
+              <div class="glm-translation-column-content glm-translation-original-text">${escapeHtml(originalText)}</div>
             </div>
             <div class="glm-translation-column">
               <div class="glm-translation-column-title">译文 (Translation)</div>
@@ -253,7 +260,7 @@ export class SelectionTranslator {
       ? translatedText.substring(0, maxLength) + '...'
       : translatedText;
 
-    // 设置翻译结果内容和样式 - 使用双栏布局
+    // 设置翻译结果内容和样式 - 使用双栏布局（用户文本经过 HTML 转义）
     container.innerHTML = `
       <div class="glm-translation-content">
         <div class="glm-translation-header">
@@ -261,20 +268,20 @@ export class SelectionTranslator {
           <div class="glm-translation-close">×</div>
         </div>
         <div class="glm-translation-body">
-          ${originalText !== truncatedOriginal ? `<div class="glm-translation-original"><strong>原文:</strong> ${truncatedOriginal}</div>` : ''}
+          ${originalText !== truncatedOriginal ? `<div class="glm-translation-original"><strong>原文:</strong> ${escapeHtml(truncatedOriginal)}</div>` : ''}
           <div class="glm-translation-columns">
             <div class="glm-translation-column">
               <div class="glm-translation-column-title">原文 (Original)</div>
-              <div class="glm-translation-column-content glm-translation-original-text">${truncatedOriginal}</div>
+              <div class="glm-translation-column-content glm-translation-original-text">${escapeHtml(truncatedOriginal)}</div>
             </div>
             <div class="glm-translation-column">
               <div class="glm-translation-column-title">译文 (Translation)</div>
-              <div class="glm-translation-column-content glm-translation-result-text">${truncatedTranslated}</div>
+              <div class="glm-translation-column-content glm-translation-result-text">${escapeHtml(truncatedTranslated)}</div>
             </div>
           </div>
         </div>
         <div class="glm-translation-footer">
-          <span class="glm-translation-lang">${this.getCurrentLanguageInfo()}</span>
+          <span class="glm-translation-lang">${escapeHtml(this.getCurrentLanguageInfo())}</span>
         </div>
       </div>
     `;

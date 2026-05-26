@@ -97,10 +97,14 @@
       <div class="translation-area">
         <div
           class="result-area"
-          :class="{ empty: !translatedText }"
+          :class="{ empty: !translatedText && !isTranslating }"
           ref="resultArea"
         >
-          <div v-if="translatedText" class="result-text">
+          <div v-if="isTranslating" class="loading-state">
+            <div class="loading-spinner"></div>
+            <span>{{ translate('popup.translating') }}</span>
+          </div>
+          <div v-else-if="translatedText" class="result-text">
             {{ translatedText }}
           </div>
           <div v-else class="empty-result">
@@ -127,7 +131,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { allLanguages } from "../common/languages";
 import {
   initLanguage,
@@ -136,6 +140,7 @@ import {
   getLanguageDisplayName,
   setupLanguageListener,
 } from "../utils/i18n.js";
+import { pinyinMap, getPinyinLetter } from "../utils/pinyin.js";
 
 export default {
   name: "Popup",
@@ -144,111 +149,23 @@ export default {
     const targetLang = ref("zh");
     const inputText = ref("");
     const translatedText = ref("");
+    const isTranslating = ref(false);
     const languages = ref(allLanguages);
     const inputTextarea = ref(null);
     const resultArea = ref(null);
     const currentLanguage = ref("zh");
     const forceUpdateKey = ref(0); // 用于强制更新的键
+    let resizeObserverRef = null; // ResizeObserver 引用，用于 onUnmounted 断开
 
     // 创建响应式的翻译函数
     const translate = (key, params = {}) => {
       // 触发 forceUpdateKey 的读取，建立依赖关系
       forceUpdateKey.value;
       const result = t(key, params);
-      // 调试日志（可以在生产环境中移除）
-      if (key === "lang.auto") {
-        console.log(
-          `translate('${key}') = '${result}', forceUpdateKey=${forceUpdateKey.value}`
-        );
-      }
       return result;
     };
 
-    // 拼音首字母映射
-    const pinyinMap = {
-      阿: "A",
-      艾: "A",
-      安: "A",
-      巴: "B",
-      白: "B",
-      保: "B",
-      布: "B",
-      比: "B",
-      波: "B",
-      朝: "C",
-      楚: "C",
-      捷: "C",
-      查: "C",
-      丹: "D",
-      德: "D",
-      达: "D",
-      大: "D",
-      俄: "E",
-      法: "F",
-      芬: "F",
-      菲: "F",
-      傅: "F",
-      格: "G",
-      古: "G",
-      高: "G",
-      刚: "G",
-      荷: "H",
-      韩: "H",
-      哈: "H",
-      海: "H",
-      意: "Y",
-      印: "Y",
-      英: "Y",
-      伊: "Y",
-      日: "R",
-      加: "J",
-      吉: "J",
-      捷: "J",
-      卡: "K",
-      科: "K",
-      克: "K",
-      拉: "L",
-      罗: "L",
-      立: "L",
-      马: "M",
-      蒙: "M",
-      美: "M",
-      南: "N",
-      挪: "N",
-      尼: "N",
-      葡: "P",
-      帕: "P",
-      奇: "Q",
-      契: "Q",
-      日: "R",
-      瑞: "R",
-      斯: "S",
-      塞: "S",
-      苏: "S",
-      萨: "S",
-      泰: "T",
-      土: "T",
-      突: "T",
-      乌: "W",
-      威: "W",
-      维: "W",
-      西: "X",
-      希: "X",
-      匈: "X",
-      亚: "Y",
-      越: "Y",
-      印: "Y",
-      英: "Y",
-      中: "Z",
-      祖: "Z",
-      扎: "Z",
-    };
-
-    // 获取语言拼音首字母
-    const getPinyinLetter = (name) => {
-      const firstChar = name.charAt(0);
-      return pinyinMap[firstChar] || firstChar.toUpperCase();
-    };
+    // 拼音首字母映射已从 ../utils/pinyin.js 导入
 
     // 按拼音首字母分组语言
     const groupedLanguages = computed(() => {
@@ -322,9 +239,6 @@ export default {
     // 监听语言变化
     watch([sourceLang, targetLang], async ([newSourceLang, newTargetLang]) => {
       try {
-        console.log(
-          `语言更改: 源语言=${newSourceLang}, 目标语言=${newTargetLang}`
-        );
 
         // 获取当前设置
         const settings = await chrome.storage.sync.get("general");
@@ -370,30 +284,40 @@ export default {
     // 创建防抖变量
     let debounceResize = null;
 
+    // 公共翻译核心逻辑
+    async function executeTranslation(text, sourceLang, targetLang) {
+      const { selectedApiId } = await chrome.storage.sync.get("selectedApiId");
+      const response = await chrome.runtime.sendMessage({
+        action: "translate",
+        text,
+        sourceLang,
+        targetLang,
+        selectedApiId,
+      });
+      if (response && response.translatedText) {
+        return response.translatedText;
+      } else if (response && response.error) {
+        // 内容安全过滤
+        if (response.error.includes("无法完成翻译") || response.error.includes("不适当") || response.error.includes("色情") || response.error.includes("违反公序良俗")) {
+          throw new Error("翻译服务遇到了问题，请尝试修改文本内容后重新翻译。");
+        }
+        throw new Error(response.error);
+      }
+      throw new Error("翻译失败: 未知错误");
+    }
+
     // 翻译处理函数
     async function handleTranslate() {
       try {
-        const settings = await chrome.storage.sync.get([
-          "selectedApiId",
-          "general",
-        ]);
-
-        const response = await chrome.runtime.sendMessage({
-          action: "translate",
-          text: inputText.value,
-          sourceLang: sourceLang.value,
-          targetLang: targetLang.value,
-          selectedApiId: settings.selectedApiId,
-        });
-
-        if (response && response.translatedText) {
-          translatedText.value = response.translatedText;
-        } else {
-          throw new Error(response.error || "翻译失败");
-        }
-      } catch (error) {
-        console.error("翻译错误:", error);
-        translatedText.value = `翻译失败: ${error.message}`;
+        isTranslating.value = true;
+        translatedText.value = "翻译中...";
+        const result = await executeTranslation(inputText.value, sourceLang.value, targetLang.value);
+        translatedText.value = result;
+      } catch (err) {
+        console.error("翻译错误:", err);
+        translatedText.value = `翻译失败: ${err.message}`;
+      } finally {
+        isTranslating.value = false;
       }
     }
 
@@ -466,63 +390,15 @@ export default {
       }
 
       try {
-        // 显示加载状态
+        isTranslating.value = true;
         translatedText.value = "翻译中...";
-
-        console.log(
-          `请求翻译: 文本="${inputText.value}", 源语言=${sourceLang.value}, 目标语言=${targetLang.value}`
-        );
-
-        // 从存储中获取当前选择的API ID
-        const settings = await chrome.storage.sync.get(["selectedApiId"]);
-
-        console.log(`使用翻译API ID: ${settings.selectedApiId}`);
-
-        // 发送翻译请求，确保使用用户选择的目标语言
-        const response = await chrome.runtime.sendMessage({
-          action: "translate",
-          text: inputText.value,
-          sourceLang: sourceLang.value,
-          targetLang: targetLang.value,
-          selectedApiId: settings.selectedApiId,
-        });
-
-        console.log("翻译响应:", response);
-
-        if (response && response.translatedText) {
-          translatedText.value = response.translatedText;
-        } else if (response && response.error) {
-          // 处理特定类型的错误信息
-          if (
-            response.error.includes("无法完成翻译") ||
-            response.error.includes("不适当") ||
-            response.error.includes("色情") ||
-            response.error.includes("违反公序良俗")
-          ) {
-            translatedText.value =
-              "翻译服务遇到了问题，请尝试修改文本内容后重新翻译。";
-          } else {
-            translatedText.value = `翻译失败: ${response.error}`;
-          }
-        } else {
-          translatedText.value = "翻译失败: 未知错误";
-        }
+        const result = await executeTranslation(inputText.value, sourceLang.value, targetLang.value);
+        translatedText.value = result;
       } catch (err) {
         console.error("翻译错误:", err);
-
-        // 提供更友好的错误信息
-        const errorMsg = err.message || "未知错误";
-        if (
-          errorMsg.includes("无法完成翻译") ||
-          errorMsg.includes("不适当") ||
-          errorMsg.includes("色情") ||
-          errorMsg.includes("违反公序良俗")
-        ) {
-          translatedText.value =
-            "翻译服务遇到了问题，请尝试修改文本内容后重新翻译。";
-        } else {
-          translatedText.value = "翻译失败: " + errorMsg;
-        }
+        translatedText.value = `翻译失败: ${err.message}`;
+      } finally {
+        isTranslating.value = false;
       }
     }, 500);
 
@@ -555,14 +431,9 @@ export default {
       try {
         await initLanguage();
         currentLanguage.value = await getCurrentLanguage();
-        console.log("Popup language initialized:", currentLanguage.value);
         // 使用 nextTick 确保在 DOM 更新后触发
         await nextTick();
         forceUpdateKey.value++; // 初始化后触发一次更新，确保使用正确的语言
-        console.log(
-          "Force update triggered, forceUpdateKey:",
-          forceUpdateKey.value
-        );
       } catch (error) {
         console.error("Failed to initialize language:", error);
       }
@@ -573,7 +444,6 @@ export default {
       setupLanguageListener((newLanguage) => {
         currentLanguage.value = newLanguage;
         forceUpdateKey.value++; // 增加键值，触发所有使用 translate 的地方重新计算
-        console.log("Popup language changed to:", newLanguage);
       });
     };
 
@@ -606,7 +476,7 @@ export default {
             // 给输入框添加事件监听，优化交互体验
             if (inputTextarea.value) {
               // 监听resize事件，确保拖动调整大小时实时响应
-              const resizeObserver = new ResizeObserver(() => {
+              resizeObserverRef = new ResizeObserver(() => {
                 // 这里不使用防抖，确保实时响应
                 if (resultArea.value) {
                   // 保持结果区域与输入区域高度一致
@@ -617,7 +487,7 @@ export default {
                 }
               });
 
-              resizeObserver.observe(inputTextarea.value);
+              resizeObserverRef.observe(inputTextarea.value);
 
               // 其他事件
               inputTextarea.value.addEventListener("focus", autoResize);
@@ -630,11 +500,20 @@ export default {
       }
     });
 
+    // 组件卸载时清理 ResizeObserver
+    onUnmounted(() => {
+      if (resizeObserverRef) {
+        resizeObserverRef.disconnect();
+        resizeObserverRef = null;
+      }
+    });
+
     return {
       sourceLang,
       targetLang,
       inputText,
       translatedText,
+      isTranslating,
       groupedLanguages,
       targetLanguageGroups,
       filteredSourceLanguages,
@@ -814,5 +693,28 @@ export default {
 
 .result-area::-webkit-scrollbar-thumb:hover {
   background: #a0aec0;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #a0aec0;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #e2e8f0;
+  border-top: 2px solid #4299e1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
