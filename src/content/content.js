@@ -3,6 +3,35 @@ let translationIcon = null;
 let popupElement = null;
 let lastSelectedText = "";
 
+// 带自动重试的消息发送 - 应对 MV3 Service Worker 休眠唤醒竞态
+async function sendMessageWithRetry(message, maxRetries = 3) {
+  let lastError;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await chrome.runtime.sendMessage(message);
+    } catch (error) {
+      lastError = error;
+      const msg = error.message || "";
+      // 只有连接类错误才重试，其他错误直接抛出
+      if (
+        msg.includes("Could not establish connection") ||
+        msg.includes("Receiving end does not exist") ||
+        msg.includes("Extension context invalidated") ||
+        msg.includes("Failed to load the script")
+      ) {
+        if (attempt < maxRetries - 1) {
+          // 指数退避：500ms → 1000ms → 2000ms
+          await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+          continue;
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error("翻译服务暂未就绪，请稍后重试或刷新页面");
+}
+
 // 初始化
 function init() {
   try {
@@ -899,10 +928,10 @@ async function translateText(text) {
     const sourceLang = settings.sourceLang || "auto";
     const targetLang = settings.targetLang || "zh";
 
-    // 发送翻译请求
+    // 发送翻译请求（含自动重试，应对 MV3 Service Worker 唤醒延迟）
     let response;
     try {
-      response = await chrome.runtime.sendMessage({
+      response = await sendMessageWithRetry({
         action: "translate",
         text: text,
         sourceLang: sourceLang,

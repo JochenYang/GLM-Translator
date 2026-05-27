@@ -284,10 +284,38 @@ export default {
     // 创建防抖变量
     let debounceResize = null;
 
+    // 带自动重试的消息发送 - 应对 MV3 Service Worker 休眠唤醒竞态
+    async function sendMessageWithRetry(message, maxRetries = 3) {
+      let lastError;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          return await chrome.runtime.sendMessage(message);
+        } catch (error) {
+          lastError = error;
+          const msg = error.message || "";
+          // 只有连接类错误才重试
+          if (
+            msg.includes("Could not establish connection") ||
+            msg.includes("Receiving end does not exist") ||
+            msg.includes("Extension context invalidated") ||
+            msg.includes("Failed to load the script")
+          ) {
+            if (attempt < maxRetries - 1) {
+              await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+              continue;
+            }
+          } else {
+            throw error;
+          }
+        }
+      }
+      throw new Error("翻译服务暂未就绪，请稍后重试或刷新页面");
+    }
+
     // 公共翻译核心逻辑
     async function executeTranslation(text, sourceLang, targetLang) {
       const { selectedApiId } = await chrome.storage.sync.get("selectedApiId");
-      const response = await chrome.runtime.sendMessage({
+      const response = await sendMessageWithRetry({
         action: "translate",
         text,
         sourceLang,
