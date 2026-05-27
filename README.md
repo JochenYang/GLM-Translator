@@ -5,7 +5,7 @@
 ![GLM Translator Logo](public/icons/icon128.png)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.5-brightgreen.svg)]()
+[![Version](https://img.shields.io/badge/version-1.2.6-brightgreen.svg)]()
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue.svg?logo=google-chrome)]()
 [![AI Powered](https://img.shields.io/badge/AI-Powered-orange.svg)]()
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D.svg?logo=vue.js)](https://vuejs.org/)
@@ -153,7 +153,12 @@ npm run build
 
 ## 📊 更新日志 & 未来计划
 
-### v1.2.5 (Latest) ✨
+### v1.2.6 (Latest) ✨
+- [x] 修复 MV3 Service Worker 休眠导致的"Could not establish connection"错误
+- [x] 添加自动重试机制（指数退避：500ms→1s→2s）
+- [x] 修复设置页智谱 AI 提供商名称显示字段 key 而非中文名的问题
+
+### v1.2.5
 - [x] 修复划词翻译 XSS 安全漏洞（innerHTML 转义）
 - [x] 修复 Popup 窗口 ResizeObserver 内存泄漏
 - [x] 抽取公共翻译逻辑，消除 handleTranslate/handleInput 代码重复
