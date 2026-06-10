@@ -86,11 +86,10 @@
           v-model="inputText"
           class="input-area"
           :placeholder="translate('popup.inputPlaceholder')"
-          maxlength="5000"
           @input="handleInput"
           ref="inputTextarea"
         ></textarea>
-        <div class="char-count">{{ inputText.length }}/5000</div>
+        <div class="char-count">{{ inputText.length }}</div>
       </div>
 
       <!-- 翻译结果区域 - 默认显示 -->
@@ -102,7 +101,7 @@
         >
           <div v-if="isTranslating" class="loading-state">
             <div class="loading-spinner"></div>
-            <span>{{ translate('popup.translating') }}</span>
+            <span>{{ progressText }}</span>
           </div>
           <div v-else-if="translatedText" class="result-text">
             {{ translatedText }}
@@ -150,12 +149,22 @@ export default {
     const inputText = ref("");
     const translatedText = ref("");
     const isTranslating = ref(false);
+    const progressCurrent = ref(0);
+    const progressTotal = ref(0);
     const languages = ref(allLanguages);
     const inputTextarea = ref(null);
     const resultArea = ref(null);
     const currentLanguage = ref("zh");
     const forceUpdateKey = ref(0); // 用于强制更新的键
     let resizeObserverRef = null; // ResizeObserver 引用，用于 onUnmounted 断开
+
+    const progressText = computed(() => {
+      if (!isTranslating.value) return translate("popup.translating");
+      if (progressTotal.value > 1) {
+        return `正在翻译 ${progressCurrent.value}/${progressTotal.value} 段…`;
+      }
+      return translate("popup.translating");
+    });
 
     // 创建响应式的翻译函数
     const translate = (key, params = {}) => {
@@ -338,6 +347,8 @@ export default {
     async function handleTranslate() {
       try {
         isTranslating.value = true;
+        progressCurrent.value = 0;
+        progressTotal.value = 0;
         translatedText.value = "翻译中...";
         const result = await executeTranslation(inputText.value, sourceLang.value, targetLang.value);
         translatedText.value = result;
@@ -346,6 +357,8 @@ export default {
         translatedText.value = `翻译失败: ${err.message}`;
       } finally {
         isTranslating.value = false;
+        progressCurrent.value = 0;
+        progressTotal.value = 0;
       }
     }
 
@@ -419,6 +432,8 @@ export default {
 
       try {
         isTranslating.value = true;
+        progressCurrent.value = 0;
+        progressTotal.value = 0;
         translatedText.value = "翻译中...";
         const result = await executeTranslation(inputText.value, sourceLang.value, targetLang.value);
         translatedText.value = result;
@@ -427,6 +442,8 @@ export default {
         translatedText.value = `翻译失败: ${err.message}`;
       } finally {
         isTranslating.value = false;
+        progressCurrent.value = 0;
+        progressTotal.value = 0;
       }
     }, 500);
 
@@ -534,7 +551,22 @@ export default {
         resizeObserverRef.disconnect();
         resizeObserverRef = null;
       }
+      if (progressListener) {
+        chrome.runtime.onMessage.removeListener(progressListener);
+        progressListener = null;
+      }
     });
+
+    // 监听 background 推送的翻译进度
+    let progressListener = null;
+    const onProgressMessage = (request) => {
+      if (request?.action === "translateProgress") {
+        progressCurrent.value = request.current || 0;
+        progressTotal.value = request.total || 0;
+      }
+    };
+    progressListener = onProgressMessage;
+    chrome.runtime.onMessage.addListener(progressListener);
 
     return {
       sourceLang,
@@ -542,6 +574,7 @@ export default {
       inputText,
       translatedText,
       isTranslating,
+      progressText,
       groupedLanguages,
       targetLanguageGroups,
       filteredSourceLanguages,

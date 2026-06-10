@@ -1,4 +1,6 @@
 // 处理上下文菜单点击
+import { chunkText } from "../utils/textChunker.js";
+
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "translate-selection") {
     // 向内容脚本发送消息
@@ -29,7 +31,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       request.text,
       request.sourceLang,
       request.targetLang,
-      request.selectedApiId
+      request.selectedApiId,
+      sender.tab?.id
     )
       .then((result) => {
         sendResponse({ translatedText: result });
@@ -43,7 +46,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // 翻译函数
-async function translateText(text, sourceLang, targetLang, selectedApiId) {
+async function translateText(text, sourceLang, targetLang, selectedApiId, tabId) {
   // 获取配置
   const settings = await chrome.storage.sync.get([
     "selectedApiId",
@@ -56,53 +59,90 @@ async function translateText(text, sourceLang, targetLang, selectedApiId) {
   // 使用传入的selectedApiId或从设置中获取
   const apiId = selectedApiId || settings.selectedApiId;
 
+  const chunks = chunkText(text);
+  const total = chunks.length;
+  const progress = (current) => {
+    if (tabId == null) return;
+    try {
+      chrome.tabs.sendMessage(tabId, {
+        action: "translateProgress",
+        current,
+        total,
+      });
+    } catch (e) {
+      // popup 可能已关闭，忽略
+    }
+  };
+
   try {
-    let result = "";
-    let apiConfig = null;
-
-    // 使用新的API存储格式获取当前选中的API
-    if (apiId && settings.apiIds && settings.apiIds.includes(apiId)) {
-      // 获取选中API的详细配置
-      const apiData = await chrome.storage.sync.get(`api_${apiId}`);
-      apiConfig = apiData[`api_${apiId}`];
-      
-      if (apiConfig) {
-        console.log(`使用API配置: ${apiConfig.name}, 类型: ${apiConfig.presetId || 'custom'}`);
-        
-        // 统一使用callCustomTranslate处理所有API，不再特殊处理GLM
-        result = await callCustomTranslate(
-          text,
-          sourceLang,
-          targetLang,
-          apiConfig
-        );
-      }
+    if (total === 0) {
+      throw new Error("翻译文本不能为空");
     }
 
-    // 如果没有找到新版配置，使用旧版配置
-    if (!apiConfig) {
-      console.log(`未找到API配置，使用兼容模式`);
+    progress(0);
 
-      // 使用兼容性保存的customConfig
-          const customConfig = settings.customConfig || {};
-          result = await callCustomTranslate(
-            text,
-            sourceLang,
-            targetLang,
-            customConfig
-          );
+    if (total === 1) {
+      const single = await translateOneChunk(chunks[0], sourceLang, targetLang, apiId, settings);
+      progress(1);
+      await cacheTranslation(text, single);
+      return single;
     }
 
-    if (!result) {
-      throw new Error("翻译结果为空");
+    const parts = [];
+    for (let i = 0; i < total; i++) {
+      const part = await translateOneChunk(chunks[i], sourceLang, targetLang, apiId, settings);
+      parts.push(part);
+      progress(i + 1);
     }
-
-    return result;
+    const merged = parts.join("\n\n");  // 翻译结果之间用段落分隔
+    await cacheTranslation(text, merged);
+    return merged;
   } catch (error) {
     console.error("翻译错误:", error);
-    throw error; // 直接抛出错误，让上层处理
+    throw error;
   }
 }
+
+// 单块翻译，路由到正确的 API 配置
+async function translateOneChunk(text, sourceLang, targetLang, apiId, settings) {
+  let apiConfig = null;
+
+  if (apiId && settings.apiIds && settings.apiIds.includes(apiId)) {
+    const apiData = await chrome.storage.sync.get(`api_${apiId}`);
+    apiConfig = apiData[`api_${apiId}`];
+  }
+
+  if (!apiConfig) {
+    apiConfig = settings.customConfig || {};
+  }
+
+  return await callCustomTranslate(text, sourceLang, targetLang, apiConfig);
+}
+
+// 缓存翻译结果（使用 storage.local 避开 sync 8KB/item 限制）
+async function cacheTranslation(originalText, translatedText) {
+  if (!originalText || !translatedText) return;
+  if (originalText.length < 100) return; // 短文本无缓存价值
+
+  try {
+    const { translationCache = [] } = await chrome.storage.local.get("translationCache");
+    const filtered = translationCache.filter(
+      (item) => item.originalText !== originalText
+    );
+    filtered.unshift({
+      originalText,
+      translatedText,
+      timestamp: Date.now(),
+    });
+    const trimmed = filtered.slice(0, 50);
+    await chrome.storage.local.set({ translationCache: trimmed });
+  } catch (e) {
+    console.warn("缓存翻译结果失败:", e);
+  }
+}
+
+// 文本分块：委托给 src/utils/textChunker.js，保证 background 与 popup 行为一致
+// （直接使用 import 进来的 chunkText）
 
 // 获取语言名称的辅助函数 - 扩展支持的语言列表
 function getLanguageName(langCode) {

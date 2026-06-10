@@ -1,7 +1,10 @@
 /**
  * 背景脚本，处理API请求和右键菜单
  */
-import { translateText, addTranslationHistory } from "../services/translator.js";
+import {
+  translateTextChunked,
+  addTranslationHistory,
+} from "../services/translator.js";
 
 // 初始化扩展
 function init() {
@@ -66,28 +69,51 @@ function setupCommandListeners() {
 function setupMessageListeners() {
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "translate") {
-      handleTranslateRequest(request, sendResponse);
+      handleTranslateRequest(request, sender, sendResponse);
       return true; // 表示异步返回结果
     }
   });
 }
 
-// 处理翻译请求
-async function handleTranslateRequest(request, sendResponse) {
+// 处理翻译请求（分块版）
+async function handleTranslateRequest(request, sender, sendResponse) {
+  const tabId = sender?.tab?.id;
+  const onProgress = (current, total) => {
+    if (tabId == null) return;
+    try {
+      chrome.tabs.sendMessage(tabId, {
+        action: "translateProgress",
+        current,
+        total,
+      });
+    } catch (e) {
+      // popup 已关闭，忽略
+    }
+  };
+
   try {
-    // 直接使用请求中的源语言和目标语言
-    const result = await translateText(
+    const result = await translateTextChunked(
       request.text,
       request.sourceLang || "auto",
       request.targetLang,
-      request.provider
+      onProgress
     );
 
+    // 兼容旧契约：既支持返回字符串，也支持 { translatedText, ... }
+    const payload =
+      typeof result === "string"
+        ? { translatedText: result, originalText: request.text }
+        : result;
+
     // 保存到历史记录
-    await addTranslationHistory(result);
+    try {
+      await addTranslationHistory(payload);
+    } catch (e) {
+      console.warn("保存历史记录失败:", e);
+    }
 
     // 返回结果
-    sendResponse(result);
+    sendResponse(payload);
   } catch (error) {
     console.error("翻译出错:", error);
     sendResponse({ error: error.message || "翻译请求失败" });
