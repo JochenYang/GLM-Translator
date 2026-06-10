@@ -5,7 +5,7 @@
 ![GLM Translator Logo](public/icons/icon128.png)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.6-brightgreen.svg)]()
+[![Version](https://img.shields.io/badge/version-1.2.7-brightgreen.svg)]()
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue.svg?logo=google-chrome)]()
 [![AI Powered](https://img.shields.io/badge/AI-Powered-orange.svg)]()
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D.svg?logo=vue.js)](https://vuejs.org/)
@@ -151,39 +151,11 @@ npm run build
 4. 推送到分支 (`git push origin feature/amazing-feature`)
 5. 打开一个 Pull Request
 
-## 📊 更新日志 & 未来计划
+## 📋 更新日志
 
-### v1.2.6 (Latest) ✨
-- [x] 修复 MV3 Service Worker 休眠导致的"Could not establish connection"错误
-- [x] 添加自动重试机制（指数退避：500ms→1s→2s）
-- [x] 修复设置页智谱 AI 提供商名称显示字段 key 而非中文名的问题
+完整版本历史请查看 [CHANGELOG.md](CHANGELOG.md)。
 
-### v1.2.5
-- [x] 修复划词翻译 XSS 安全漏洞（innerHTML 转义）
-- [x] 修复 Popup 窗口 ResizeObserver 内存泄漏
-- [x] 抽取公共翻译逻辑，消除 handleTranslate/handleInput 代码重复
-- [x] 翻译结果区添加加载动画 spinner
-- [x] 清理生产环境 console.log 调试日志
-- [x] 拼音映射表提取为独立模块（pinyin.js）
-
-### v1.2.4
-- [x] 接入微软免费翻译服务（无须 API Key）
-- [x] 优化提供商 UI：绿色提示卡"无需 API Key"
-- [x] 修复保存设置后刷新页面被旧配置覆盖问题
-
-### v1.2.3
-- [x] 升级至商业级AI翻译扩展
-- [x] 新增8个主流AI翻译服务商支持
-- [x] 更新所有模型至2025年最新版本
-- [x] 实现多策略智能敏感内容处理系统
-- [x] 新增ProviderSetup组件，支持自定义模型配置
-- [x] 优化设置界面UI，2x2网格布局
-- [x] 完善配置持久化机制
-- [x] **修复多配置管理Bug** - 用户可保存无限数量的服务商配置，测试连接时不再丢失已保存配置
-- [x] 优化配置管理逻辑 - 支持已保存配置列表显示、选择和删除功能
-- [x] 改进测试连接功能 - 使用临时配置测试，不影响用户已保存的配置数据
-
-### 未来计划
+## 🗓️ 未来计划
 - [ ] 添加翻译历史记录功能
 - [ ] 支持文本朗读（TTS）
 - [ ] 优化翻译结果展示动画
