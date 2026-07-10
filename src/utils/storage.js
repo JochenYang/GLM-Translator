@@ -1,8 +1,8 @@
 /**
- * 浏览器存储工具类
+ * Browser storage utilities
  */
 
-// 获取存储数据
+// 获取存储数据 (sync)
 export function getStorage(keys, defaultValues = {}) {
   return new Promise((resolve) => {
     chrome.storage.sync.get(keys, (result) => {
@@ -10,7 +10,6 @@ export function getStorage(keys, defaultValues = {}) {
         console.error("读取存储出错:", chrome.runtime.lastError);
       }
 
-      // 处理默认值
       if (Array.isArray(keys)) {
         const values = {};
         keys.forEach((key) => {
@@ -27,7 +26,7 @@ export function getStorage(keys, defaultValues = {}) {
   });
 }
 
-// 设置存储数据
+// 设置存储数据 (sync — non-secrets only)
 export function setStorage(data) {
   return new Promise((resolve, reject) => {
     chrome.storage.sync.set(data, () => {
@@ -53,27 +52,24 @@ export function removeStorage(keys) {
   });
 }
 
-// 获取翻译历史记录
+// History lives in local storage (may contain private text)
 export async function getTranslationHistory(limit = 50) {
-  const { translationHistory = [] } = await getStorage("translationHistory", {
-    translationHistory: [],
-  });
+  const { translationHistory = [] } = await chrome.storage.local.get(
+    "translationHistory"
+  );
   return translationHistory.slice(0, limit);
 }
 
-// 添加翻译历史记录
 export async function addTranslationHistory(item) {
-  const { translationHistory = [] } = await getStorage("translationHistory", {
-    translationHistory: [],
-  });
+  const { translationHistory = [] } = await chrome.storage.local.get(
+    "translationHistory"
+  );
 
-  // 添加时间戳
   const historyItem = {
     ...item,
     timestamp: Date.now(),
   };
 
-  // 去重处理：如果已存在相同原文的记录，则更新
   const existingIndex = translationHistory.findIndex(
     (record) => record.originalText === item.originalText
   );
@@ -82,19 +78,16 @@ export async function addTranslationHistory(item) {
     translationHistory.splice(existingIndex, 1);
   }
 
-  // 添加到历史记录首位
   translationHistory.unshift(historyItem);
 
-  // 限制历史记录数量
   const MAX_HISTORY = 100;
   const newHistory = translationHistory.slice(0, MAX_HISTORY);
 
-  await setStorage({ translationHistory: newHistory });
+  await chrome.storage.local.set({ translationHistory: newHistory });
   return newHistory;
 }
 
-// 清空翻译历史记录
 export async function clearTranslationHistory() {
-  await setStorage({ translationHistory: [] });
+  await chrome.storage.local.set({ translationHistory: [] });
   return [];
 }

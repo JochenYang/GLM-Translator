@@ -1,22 +1,32 @@
 /**
- * 背景脚本，处理API请求和右键菜单
+ * 后台 Service Worker：统一处理翻译请求、右键菜单与 TTS 音频代理。
  */
 import {
   translateTextChunked,
   addTranslationHistory,
+  cancelActiveTranslation,
 } from "../services/translator.js";
+import {
+  migrateSecretsFromSync,
+  getSelectedApiConfig,
+  resolveConfigUrl,
+} from "../utils/secureStorage.js";
+import { originPatternFromUrl, isKnownProviderUrl } from "../utils/providerOrigins.js";
+import { PROVIDER_PRESETS } from "../config/providers.js";
 
-// 初始化扩展
+// Initialize
 function init() {
   setupContextMenu();
   setupMessageListeners();
   setupCommandListeners();
+  // Migrate secrets off sync on install/startup
+  migrateSecretsFromSync().catch((e) =>
+    console.warn("secrets migration:", e)
+  );
 }
 
-// 设置右键菜单
 function setupContextMenu() {
   try {
-    // 确保仅创建一次菜单
     chrome.contextMenus.removeAll(() => {
       chrome.contextMenus.create({
         id: "translate-selection",
@@ -25,15 +35,12 @@ function setupContextMenu() {
       });
     });
 
-    // 处理右键菜单点击
     chrome.contextMenus.onClicked.addListener((info, tab) => {
       if (info.menuItemId === "translate-selection" && tab && tab.id) {
         chrome.tabs.sendMessage(
           tab.id,
-          {
-            action: "contextMenuTranslate",
-          },
-          (response) => {
+          { action: "contextMenuTranslate" },
+          () => {
             if (chrome.runtime.lastError) {
               console.error("发送消息失败:", chrome.runtime.lastError);
             }
@@ -46,16 +53,13 @@ function setupContextMenu() {
   }
 }
 
-// 设置命令监听
 function setupCommandListeners() {
   chrome.commands.onCommand.addListener((command, tab) => {
     if (command === "translate-selection" && tab && tab.id) {
       chrome.tabs.sendMessage(
         tab.id,
-        {
-          action: "contextMenuTranslate",
-        },
-        (response) => {
+        { action: "contextMenuTranslate" },
+        () => {
           if (chrome.runtime.lastError) {
             console.error("发送命令消息失败:", chrome.runtime.lastError);
           }
@@ -65,17 +69,92 @@ function setupCommandListeners() {
   });
 }
 
-// 设置消息监听
 function setupMessageListeners() {
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "translate") {
       handleTranslateRequest(request, sender, sendResponse);
-      return true; // 表示异步返回结果
+      return true;
     }
+    if (request.action === "cancelTranslate") {
+      cancelActiveTranslation();
+      sendResponse({ ok: true });
+      return false;
+    }
+    if (request.action === "ensureHostPermission") {
+      ensureHostPermission(request.url)
+        .then((granted) => sendResponse({ granted }))
+        .catch((e) => sendResponse({ granted: false, error: e.message }));
+      return true;
+    }
+    // 在线 TTS 音频代理（避免页面 CSP/CORS 拦截）
+    if (request.action === "fetchTtsAudio" && request.url) {
+      fetchTtsAudioDataUrl(request.url)
+        .then((dataUrl) => sendResponse({ dataUrl }))
+        .catch((e) => sendResponse({ error: e.message || String(e) }));
+      return true;
+    }
+    return false;
   });
 }
 
-// 处理翻译请求（分块版）
+/**
+ * 拉取短文本 TTS 音频，转为 data URL 供内容脚本播放。
+ * @param {string} url
+ * @returns {Promise<string>}
+ */
+async function fetchTtsAudioDataUrl(url) {
+  // 仅允许已知免费 TTS 域名
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("无效的 TTS URL");
+  }
+  const host = parsed.hostname;
+  const allowed =
+    host === "translate.google.com" ||
+    host.endsWith(".google.com") ||
+    host === "translate.googleapis.com";
+  if (!allowed || parsed.protocol !== "https:") {
+    throw new Error("TTS 域名未授权");
+  }
+
+  const res = await fetch(url, {
+    method: "GET",
+    cache: "no-store",
+    credentials: "omit",
+  });
+  if (!res.ok) {
+    throw new Error(`TTS HTTP ${res.status}`);
+  }
+  const buf = await res.arrayBuffer();
+  if (!buf || buf.byteLength < 32) {
+    throw new Error("TTS 音频为空");
+  }
+  // 转 base64 data URL
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const b64 = btoa(binary);
+  const ctype = res.headers.get("content-type") || "audio/mpeg";
+  return `data:${ctype};base64,${b64}`;
+}
+
+async function ensureHostPermission(url) {
+  if (!url || isKnownProviderUrl(url)) return true;
+  const pattern = originPatternFromUrl(url);
+  if (!pattern) return false;
+  if (!chrome.permissions?.request) {
+    // Fallback: assume build includes optional_host_permissions request from options page
+    return true;
+  }
+  const already = await chrome.permissions.contains({ origins: [pattern] });
+  if (already) return true;
+  return chrome.permissions.request({ origins: [pattern] });
+}
+
 async function handleTranslateRequest(request, sender, sendResponse) {
   const tabId = sender?.tab?.id;
   const onProgress = (current, total) => {
@@ -86,12 +165,42 @@ async function handleTranslateRequest(request, sender, sendResponse) {
         current,
         total,
       });
-    } catch (e) {
-      // popup 已关闭，忽略
+    } catch (_) {
+      /* popup closed */
+    }
+    // Also broadcast for extension pages (popup has no tab)
+    try {
+      chrome.runtime.sendMessage({
+        action: "translateProgress",
+        current,
+        total,
+      }).catch(() => {});
+    } catch (_) {
+      /* ignore */
     }
   };
 
   try {
+    // Ensure optional host permission for the active endpoint.
+    // Content/popup never send customUrl — always resolve from selected config.
+    // Known preset origins short-circuit inside ensureHostPermission.
+    try {
+      let urlToEnsure = request.customUrl || null;
+      if (!urlToEnsure) {
+        const selected = await getSelectedApiConfig();
+        urlToEnsure =
+          resolveConfigUrl(selected) ||
+          selected?.config?.url ||
+          PROVIDER_PRESETS[selected?.provider]?.url ||
+          null;
+      }
+      if (urlToEnsure) {
+        await ensureHostPermission(urlToEnsure);
+      }
+    } catch (e) {
+      console.warn("ensure host permission:", e);
+    }
+
     const result = await translateTextChunked(
       request.text,
       request.sourceLang || "auto",
@@ -99,20 +208,23 @@ async function handleTranslateRequest(request, sender, sendResponse) {
       onProgress
     );
 
-    // 兼容旧契约：既支持返回字符串，也支持 { translatedText, ... }
     const payload =
       typeof result === "string"
         ? { translatedText: result, originalText: request.text }
         : result;
 
-    // 保存到历史记录
     try {
-      await addTranslationHistory(payload);
+      await addTranslationHistory({
+        originalText: payload.originalText || request.text,
+        translatedText: payload.translatedText,
+        from: payload.from || request.sourceLang,
+        to: payload.to || request.targetLang,
+        detectedLanguage: payload.detectedLanguage,
+      });
     } catch (e) {
       console.warn("保存历史记录失败:", e);
     }
 
-    // 返回结果
     sendResponse(payload);
   } catch (error) {
     console.error("翻译出错:", error);
@@ -120,5 +232,9 @@ async function handleTranslateRequest(request, sender, sendResponse) {
   }
 }
 
-// 初始化
+chrome.runtime.onInstalled.addListener(() => {
+  migrateSecretsFromSync().catch(() => {});
+  setupContextMenu();
+});
+
 init();

@@ -40,26 +40,20 @@ export function getLanguageName(code, provider = "general") {
   if (!code) return "未知语言";
 
   // 处理自动检测
-  if (code === "auto") return "自动检测";
+  if (code === "auto" || code === "detect") return "自动检测";
 
   // 标准化语言代码
   const normalizedCode = code.toLowerCase().split("-")[0];
+  const languageMap = allLanguages;
 
-  // 根据提供商获取语言映射
-  const languageMap =
-    provider === "microsoft" ? microsoftLanguages : allLanguages;
-
-  // 尝试获取完整语言代码的名称
   if (languageMap[code]) {
     return languageMap[code];
   }
 
-  // 尝试获取标准化后的语言代码名称
   if (languageMap[normalizedCode]) {
     return languageMap[normalizedCode];
   }
 
-  // 如果都找不到，返回原始代码
   return code;
 }
 
@@ -71,11 +65,10 @@ export function getLanguageName(code, provider = "general") {
  */
 export function isValidLanguage(code, provider = "general") {
   if (!code) return false;
-  if (code === "auto") return true;
+  if (code === "auto" || code === "detect") return true;
 
   const normalizedCode = code.toLowerCase().split("-")[0];
-  const languageMap =
-    provider === "microsoft" ? microsoftLanguages : allLanguages;
+  const languageMap = allLanguages;
 
   return !!languageMap[code] || !!languageMap[normalizedCode];
 }

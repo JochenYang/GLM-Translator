@@ -5,7 +5,7 @@
 ![GLM Translator Logo](public/icons/icon128.png)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.7-brightgreen.svg)]()
+[![Version](https://img.shields.io/badge/version-1.3.0-brightgreen.svg)]()
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue.svg?logo=google-chrome)]()
 [![AI Powered](https://img.shields.io/badge/AI-Powered-orange.svg)]()
 [![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D.svg?logo=vue.js)](https://vuejs.org/)
@@ -33,16 +33,16 @@ GLM Translator 是一款**商业级**的浏览器划词翻译扩展，支持多�
 
 - **划词翻译** - 支持选中文本后立即翻译或显示图标
 - **右键菜单** - 通过右键菜单快捷翻译选中文本
-- **快捷键支持** - 内置Alt+T和Alt+G快捷键，便捷操作翻译功能
-- **🎯 智能敏感内容处理** - 多策略自动重试系统，智能绕过内容限制
-- **多语言支持** - 支持 20+种语言互译，包括中文、英语、日语、韩语等
-- **🎨 商业级界面设计** - 简洁现代的UI，2x2网格功能展示
-- **高度可配置** - 支持自定义模型配置，实时API连接测试
-- **智能配置** - 预设6家主流 AI 服务商配置，一键切换翻译服务
-- **配置持久化** - 完善的配置保存机制，自定义模型刷新不丢失
-- **📋 多配置管理** - 支持同时保存多个AI服务商配置，可随时切换，配置永久保存不丢失
-- **🔧 配置测试** - 支持API连接测试，测试过程不影响已保存的配置
-- **🗑️ 配置操作** - 可查看、选择、删除已保存的配置，支持配置去重
+- **快捷键支持** - 内置 Alt+T / Alt+G，便捷操作翻译功能
+- **微软免费翻译** - 基于 Edge 同款接口，无需 API Key（非官方，可能限流）
+- **智能语言检测** - 源语言「自动」时本地检测语种，微软返回结果优先展示
+- **划词结果窗** - 原文/译文对照、语种切换、进度、Esc 关闭、拖拽
+- **语音朗读** - 浏览器 Web Speech + 中文在线自然音兜底；设置页可中英文试听
+- **多语言支持** - 支持 20+ 种语言互译
+- **高度可配置** - 多服务商、自定义 OpenAI 兼容 API、连接测试
+- **📋 多配置管理** - 多套服务商配置切换；API Key 仅存本机 local，不进 sync
+- **翻译历史** - 本机保存，可在设置中查看/清空
+- **划词黑名单** - 可按域名禁用划词翻译
 - **错误处理** - 完善的错误提示和配置验证机制
 
 ## 🔧 安装方法
@@ -96,12 +96,13 @@ npm run build
 
 1. 点击扩展弹窗右上角的设置图标或右键点击扩展图标选择"选项"
 2. 在设置页面中可以配置：
+   - 翻译服务提供商（微软免费 / 智谱 GLM / 火山 / 硅基 / 混元 / 通义 / DeepSeek / 自定义）
+   - API 密钥和模型配置（Key 仅保存在本机）
    - 默认源语言和目标语言
-   - 划词翻译的触发方式
-   - 翻译服务提供商（智谱GLM、火山引擎、硅基流动等）
-   - API 密钥和模型配置
-   - 界面显示选项和个性化设置
-3. 快捷键可在浏览器的扩展管理页面(chrome://extensions/shortcuts或edge中相应页面)中查看或修改
+   - 划词触发方式、最短选中长度、域名黑名单
+   - **语音朗读预览**（中英文试听）
+   - 翻译历史查看与清空
+3. 快捷键可在浏览器的扩展管理页面（`chrome://extensions/shortcuts` 或 Edge 对应页面）中查看或修改
 
 ### 翻译服务配置
 
@@ -132,14 +133,12 @@ npm run build
 
 ## 🔨 技术架构
 
-- **前端框架**：Vue.js 3.5.13
-- **构建工具**：Vite 4.5.13
-- **UI 框架**：Tailwind CSS 3.4.17
+- **前端框架**：Vue.js 3.x
+- **构建工具**：Vite 5.x
+- **UI 框架**：Tailwind CSS 3.x
 - **浏览器扩展**：Chrome Extension Manifest V3
-- **打包插件**：@crxjs/vite-plugin 2.0.0-beta.32
-- **动画库**：Three.js 0.158.0、Tween.js 21.0.0
-- **粒子效果**：Particles.js 2.0.0
-- **工具库**：Lodash-es 4.17.21
+- **打包插件**：@crxjs/vite-plugin
+- **测试**：Node.js 内置 test runner（`pnpm test`）
 
 ## 👥 贡献指南
 
@@ -156,8 +155,9 @@ npm run build
 完整版本历史请查看 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 🗓️ 未来计划
-- [ ] 添加翻译历史记录功能
-- [ ] 支持文本朗读（TTS）
+- [x] 翻译历史记录
+- [x] 文本朗读（TTS）与设置页预览
+- [ ] 朗读音色手动选择 / 语速调节持久化
 - [ ] 优化翻译结果展示动画
 - [ ] 添加翻译质量评估
 - [ ] 支持批量文本翻译

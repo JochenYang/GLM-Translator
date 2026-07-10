@@ -54,6 +54,12 @@
             </option>
           </optgroup>
         </select>
+        <span
+          v-if="detectedLabel"
+          class="detected-badge"
+          :title="detectedLabel"
+          >{{ detectedLabel }}</span
+        >
       </div>
 
       <!-- 设置按钮 -->
@@ -139,7 +145,8 @@ import {
   getLanguageDisplayName,
   setupLanguageListener,
 } from "../utils/i18n.js";
-import { pinyinMap, getPinyinLetter } from "../utils/pinyin.js";
+import { getPinyinLetter } from "../utils/pinyin.js";
+import { resolveSourceLanguage } from "../utils/detectLanguage.js";
 
 export default {
   name: "Popup",
@@ -156,6 +163,7 @@ export default {
     const resultArea = ref(null);
     const currentLanguage = ref("zh");
     const forceUpdateKey = ref(0); // 用于强制更新的键
+    const detectedCode = ref(null);
     let resizeObserverRef = null; // ResizeObserver 引用，用于 onUnmounted 断开
 
     const progressText = computed(() => {
@@ -164,6 +172,16 @@ export default {
         return `正在翻译 ${progressCurrent.value}/${progressTotal.value} 段…`;
       }
       return translate("popup.translating");
+    });
+
+    const detectedLabel = computed(() => {
+      forceUpdateKey.value;
+      if (!detectedCode.value) return "";
+      const name =
+        allLanguages[detectedCode.value] ||
+        getLanguageDisplayName(detectedCode.value) ||
+        detectedCode.value;
+      return `检测: ${name}`;
     });
 
     // 创建响应式的翻译函数
@@ -322,21 +340,34 @@ export default {
     }
 
     // 公共翻译核心逻辑
-    async function executeTranslation(text, sourceLang, targetLang) {
-      const { selectedApiId } = await chrome.storage.sync.get("selectedApiId");
+    async function executeTranslation(text, srcLang, tgtLang) {
+      // Local detect for UI when source is auto
+      const resolved = resolveSourceLanguage(text, srcLang);
+      if (srcLang === "auto" && resolved.detected) {
+        detectedCode.value = resolved.detected;
+      } else {
+        detectedCode.value = null;
+      }
+
       const response = await sendMessageWithRetry({
         action: "translate",
         text,
-        sourceLang,
-        targetLang,
-        selectedApiId,
+        sourceLang: srcLang,
+        targetLang: tgtLang,
       });
       if (response && response.translatedText) {
+        if (response.detectedLanguage) {
+          detectedCode.value = response.detectedLanguage;
+        }
         return response.translatedText;
       } else if (response && response.error) {
-        // 内容安全过滤
-        if (response.error.includes("无法完成翻译") || response.error.includes("不适当") || response.error.includes("色情") || response.error.includes("违反公序良俗")) {
-          throw new Error("翻译服务遇到了问题，请尝试修改文本内容后重新翻译。");
+        if (
+          response.error.includes("无法完成翻译") ||
+          response.error.includes("无法翻译")
+        ) {
+          throw new Error(
+            "翻译服务遇到了问题，请尝试修改文本内容后重新翻译。"
+          );
         }
         throw new Error(response.error);
       }
@@ -427,6 +458,7 @@ export default {
 
       if (!inputText.value.trim()) {
         translatedText.value = "";
+        detectedCode.value = null;
         return;
       }
 
@@ -575,6 +607,7 @@ export default {
       translatedText,
       isTranslating,
       progressText,
+      detectedLabel,
       groupedLanguages,
       targetLanguageGroups,
       filteredSourceLanguages,
@@ -615,6 +648,16 @@ export default {
   height: 32px;
   padding: 6px;
   margin: 0 8px; /* 添加左右间距 */
+}
+
+.detected-badge {
+  font-size: 11px;
+  color: #64748b;
+  margin-left: 6px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-btn {

@@ -494,8 +494,14 @@ import {
   getProviderConfig,
   createApiConfig,
 } from "../config/providers.js";
-import { translateText } from "../services/translator.js";
-import { testConnection as testMicrosoftConnection, getUsageStatsAPI } from "../services/microsoftTranslate.js";
+import { testProviderConnection } from "../services/translator.js";
+import { getUsageStatsAPI } from "../services/microsoftTranslate.js";
+import {
+  loadApiConfigs,
+  saveApiConfigs,
+  migrateSecretsFromSync,
+} from "../utils/secureStorage.js";
+import { originPatternFromUrl, isKnownProviderUrl } from "../utils/providerOrigins.js";
 import {
   initLanguage,
   getCurrentLanguage,
@@ -574,15 +580,13 @@ export default {
     await this.loadUsage();
   },
   methods: {
-    // 加载已保存的配置
+    // 加载已保存的配置（密钥来自 local）
     async loadSavedApis() {
       try {
-        const settings = await chrome.storage.sync.get([
-          "savedApis",
-          "selectedApiId",
-        ]);
-        this.savedApis = settings.savedApis || [];
-        this.selectedApiId = settings.selectedApiId || null;
+        await migrateSecretsFromSync();
+        const { savedApis, selectedApiId } = await loadApiConfigs();
+        this.savedApis = savedApis || [];
+        this.selectedApiId = selectedApiId || null;
       } catch (error) {
         console.error("加载已保存配置失败:", error);
       }
@@ -590,17 +594,15 @@ export default {
 
     // 选择已保存的配置
     async selectSavedApi(apiConfig) {
-      // 更新选中的API到存储
-      await chrome.storage.sync.set({
+      const { savedApis } = await loadApiConfigs();
+      await saveApiConfigs(savedApis, {
         selectedApiId: apiConfig.id,
         selectedProvider: apiConfig.provider,
       });
 
-      // 重新加载配置
       await this.loadCurrentConfig();
 
-      // 如果是微软翻译，加载用量统计
-      if (apiConfig.provider === 'microsoft') {
+      if (apiConfig.provider === "microsoft") {
         await this.loadUsage();
       }
     },
@@ -610,24 +612,20 @@ export default {
       if (!confirm("确定要删除这个配置吗？")) return;
 
       try {
-        const settings = await chrome.storage.sync.get(["savedApis"]);
-        const savedApis = settings.savedApis || [];
-        const filteredApis = savedApis.filter((api) => api.id !== apiId);
+        const { savedApis, selectedApiId } = await loadApiConfigs();
+        const filteredApis = (savedApis || []).filter((api) => api.id !== apiId);
 
-        // 如果删除的是当前选中的配置，清除选择
-        if (this.selectedApiId === apiId) {
-          await chrome.storage.sync.set({
-            savedApis: filteredApis,
+        if (selectedApiId === apiId) {
+          await saveApiConfigs(filteredApis, {
             selectedApiId: null,
             selectedProvider: null,
           });
         } else {
-          await chrome.storage.sync.set({
-            savedApis: filteredApis,
+          await saveApiConfigs(filteredApis, {
+            selectedApiId,
           });
         }
 
-        // 重新加载配置
         await this.loadCurrentConfig();
         this.showSuccessMessage("删除成功！");
       } catch (error) {
@@ -811,48 +809,35 @@ export default {
 
     async loadCurrentConfig() {
       try {
-        const settings = await chrome.storage.sync.get([
-          "selectedProvider",
-          "savedApis",
-          "selectedApiId",
-        ]);
+        await migrateSecretsFromSync();
+        const { savedApis, selectedApiId, selectedProvider } =
+          await loadApiConfigs();
 
-        // 更新已保存配置列表
-        if (settings.savedApis) {
-          this.savedApis = settings.savedApis;
-          this.selectedApiId = settings.selectedApiId || null;
+        this.savedApis = savedApis || [];
+        this.selectedApiId = selectedApiId || null;
+
+        if (selectedProvider) {
+          this.selectedProvider = selectedProvider;
         }
 
-        if (settings.selectedProvider) {
-          this.selectedProvider = settings.selectedProvider;
-        }
-
-        if (settings.savedApis && settings.selectedApiId) {
-          const currentApi = settings.savedApis.find(
-            (api) => api.id === settings.selectedApiId
-          );
+        if (savedApis && selectedApiId) {
+          const currentApi = savedApis.find((api) => api.id === selectedApiId);
           if (currentApi) {
             this.selectedProvider = currentApi.provider;
-            this.apiKey = currentApi.apiKey;
+            this.apiKey = currentApi.apiKey || "";
 
-            // 处理自定义API
             if (currentApi.provider === "custom") {
               this.customUrl = currentApi.url;
               this.customModel = currentApi.model;
             } else {
-              // 处理预设提供商的模型
               const providerConfig = getProviderConfig(currentApi.provider);
               if (providerConfig) {
-                // 检查是否是预设模型
                 const isPresetModel = providerConfig.models.some(
                   (model) => model.id === currentApi.model
                 );
-
                 if (isPresetModel) {
-                  // 是预设模型，直接设置
                   this.selectedModel = currentApi.model;
                 } else {
-                  // 是自定义模型，设置为custom并保存自定义名称
                   this.selectedModel = "custom";
                   this.customModelName = currentApi.model;
                 }
@@ -865,120 +850,85 @@ export default {
       }
     },
 
+    /** Request optional host permission for custom API URLs (options page). */
+    async ensureCustomHostPermission(url) {
+      if (!url || isKnownProviderUrl(url)) return true;
+      const pattern = originPatternFromUrl(url);
+      if (!pattern || !chrome.permissions?.request) return true;
+      try {
+        const already = await chrome.permissions.contains({
+          origins: [pattern],
+        });
+        if (already) return true;
+        return await chrome.permissions.request({ origins: [pattern] });
+      } catch (e) {
+        console.warn("permission request failed:", e);
+        return false;
+      }
+    },
+
     async testConnection() {
       this.testing = true;
       this.testResult = null;
 
-      // 微软免费翻译：无需 API Key，走专用测试逻辑
-      if (this.selectedProvider === 'microsoft') {
-        try {
-          this.testResult = await testMicrosoftConnection();
-          if (this.testResult.success) {
-            await this.loadUsage();
-          }
-        } catch (error) {
-          this.testResult = { success: false, message: error.message };
-        } finally {
-          this.testing = false;
-        }
-        return;
-      }
-
-      if (!this.apiKey || !this.selectedProvider) {
-        this.testing = false;
-        return;
-      }
-
       try {
-        let tempConfig;
+        // Memory-only test — never overwrites savedApis
+        if (this.selectedProvider === "microsoft") {
+          this.testResult = await testProviderConnection({
+            provider: "microsoft",
+          });
+          if (this.testResult.success) await this.loadUsage();
+          return;
+        }
+
+        if (!this.apiKey || !this.selectedProvider) {
+          this.testResult = {
+            success: false,
+            message: "请填写 API Key",
+          };
+          return;
+        }
+
+        let url;
+        let model;
 
         if (this.currentProviderConfig?.isCustom) {
-          // 自定义API测试
           if (!this.customUrl || !this.customModel) {
             this.testResult = {
               success: false,
               message: "请填写完整的自定义API配置",
             };
-            this.testing = false;
             return;
           }
-
-          tempConfig = {
-            id: `test_${Date.now()}`,
-            name: "测试配置",
-            provider: "custom",
-            url: this.customUrl,
-            apiKey: this.apiKey,
-            model: this.customModel,
-            headers: {},
-          };
+          url = this.customUrl;
+          model = this.customModel;
+          const granted = await this.ensureCustomHostPermission(url);
+          if (!granted) {
+            this.testResult = {
+              success: false,
+              message: "未授予自定义 API 域名访问权限",
+            };
+            return;
+          }
         } else {
-          // 预设提供商测试
-          const modelToUse = this.getFinalModelName();
           if (this.selectedModel === "custom" && !this.customModelName) {
             this.testResult = {
               success: false,
               message: "请输入自定义模型名称",
             };
-            this.testing = false;
             return;
           }
-
-          tempConfig = createApiConfig(
-            this.selectedProvider,
-            this.apiKey,
-            modelToUse
-          );
+          model = this.getFinalModelName();
+          url = this.currentProviderConfig?.url;
         }
 
-        // **关键修复：使用临时存储，不影响已保存的配置**
-        // 先获取现有配置（不在这里保存）
-        const originalSettings = await chrome.storage.sync.get([
-          "savedApis",
-          "selectedApiId",
-        ]);
-        const originalSavedApis = originalSettings.savedApis || [];
-        const originalSelectedApiId = originalSettings.selectedApiId || null;
-
-        // 临时保存测试配置
-        await chrome.storage.sync.set({
-          selectedProvider: this.selectedProvider,
-          savedApis: [tempConfig],
-          selectedApiId: tempConfig.id,
+        this.testResult = await testProviderConnection({
+          provider: this.selectedProvider,
+          apiKey: this.apiKey,
+          model,
+          url,
         });
-
-        // 测试翻译
-        const result = await translateText("Hello", "en", "zh");
-
-        // **重要：测试完成后立即恢复原始配置**
-        await chrome.storage.sync.set({
-          savedApis: originalSavedApis,
-          selectedApiId: originalSelectedApiId,
-        });
-
-        if (result && result.translatedText) {
-          this.testResult = {
-            success: true,
-            message: this.t("provider.connectionSuccess"),
-          };
-        } else {
-          throw new Error("翻译结果为空");
-        }
       } catch (error) {
-        // **错误时也要恢复原始配置**
-        try {
-          const originalSettings = await chrome.storage.sync.get([
-            "savedApis",
-            "selectedApiId",
-          ]);
-          await chrome.storage.sync.set({
-            savedApis: originalSettings.savedApis || [],
-            selectedApiId: originalSettings.selectedApiId || null,
-          });
-        } catch (restoreError) {
-          console.error("恢复配置失败:", restoreError);
-        }
-
         this.testResult = {
           success: false,
           message: this.t("provider.connectionFailed", {
@@ -993,14 +943,17 @@ export default {
     async saveConfig() {
       if (!this.selectedProvider) return;
 
-      // 微软免费翻译：无需配置，直接标记为已选择
-      if (this.selectedProvider === 'microsoft') {
-        await chrome.storage.sync.set({
-          selectedProvider: 'microsoft',
-          selectedApiId: null,          // 清掉旧配置选中标记，防止 reload 时被 savedApis 覆盖
+      if (this.selectedProvider === "microsoft") {
+        const { savedApis } = await loadApiConfigs();
+        await saveApiConfigs(savedApis || [], {
+          selectedProvider: "microsoft",
+          selectedApiId: null,
         });
+        await chrome.storage.sync.set({ selectedProvider: "microsoft" });
         this.showSuccess = true;
-        setTimeout(() => { this.showSuccess = false; }, 3000);
+        setTimeout(() => {
+          this.showSuccess = false;
+        }, 3000);
         return;
       }
 
@@ -1010,12 +963,15 @@ export default {
         let config;
 
         if (this.currentProviderConfig?.isCustom) {
-          // 自定义API配置
           if (!this.customUrl || !this.customModel) {
             alert("请填写完整的自定义API配置");
             return;
           }
-
+          const granted = await this.ensureCustomHostPermission(this.customUrl);
+          if (!granted) {
+            alert("未授予自定义 API 域名访问权限，无法保存");
+            return;
+          }
           config = {
             id: `custom_${Date.now()}`,
             name: "自定义API",
@@ -1028,7 +984,6 @@ export default {
             lastUsed: null,
           };
         } else {
-          // 预设提供商配置
           const modelToUse = this.getFinalModelName();
           if (this.selectedModel === "custom" && !this.customModelName) {
             alert("请输入自定义模型名称");
@@ -1041,34 +996,26 @@ export default {
           );
         }
 
-        // 获取现有配置并去重添加
-        const settings = await chrome.storage.sync.get(["savedApis"]);
-        const savedApis = settings.savedApis || [];
-
-        // 检查是否已存在相同provider的配置
-        const existingIndex = savedApis.findIndex(
+        const { savedApis } = await loadApiConfigs();
+        const list = savedApis || [];
+        const existingIndex = list.findIndex(
           (api) => api.provider === this.selectedProvider
         );
-
         if (existingIndex !== -1) {
-          // 替换已存在的配置
-          savedApis[existingIndex] = config;
+          // preserve id so secrets key stays stable when possible
+          config.id = list[existingIndex].id || config.id;
+          list[existingIndex] = config;
         } else {
-          // 添加新配置
-          savedApis.push(config);
+          list.push(config);
         }
 
-        // 保存配置
-        await chrome.storage.sync.set({
+        await saveApiConfigs(list, {
           selectedProvider: this.selectedProvider,
-          savedApis: savedApis,
           selectedApiId: config.id,
         });
 
-        // 刷新已保存配置列表
         await this.loadCurrentConfig();
 
-        // 显示成功提示
         this.showSuccess = true;
         setTimeout(() => {
           this.showSuccess = false;
@@ -1108,14 +1055,13 @@ export default {
 
     async loadProviderConfig(providerId) {
       try {
-        const settings = await chrome.storage.sync.get(["savedApis"]);
-        if (settings.savedApis) {
-          // 查找该提供商的已保存配置
-          const providerApi = settings.savedApis.find(
+        const { savedApis } = await loadApiConfigs();
+        if (savedApis) {
+          const providerApi = savedApis.find(
             (api) => api.provider === providerId
           );
           if (providerApi) {
-            this.apiKey = providerApi.apiKey;
+            this.apiKey = providerApi.apiKey || "";
 
             if (providerId === "custom") {
               this.customUrl = providerApi.url;
