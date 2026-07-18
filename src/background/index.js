@@ -181,18 +181,23 @@ async function handleTranslateRequest(request, sender, sendResponse) {
   };
 
   try {
-    // Ensure optional host permission for the active endpoint.
-    // Content/popup never send customUrl — always resolve from selected config.
-    // Known preset origins short-circuit inside ensureHostPermission.
+    // 仅自定义 / 非预置域名才申请 optional 权限（微软等预置域已在 manifest）
     try {
       let urlToEnsure = request.customUrl || null;
       if (!urlToEnsure) {
         const selected = await getSelectedApiConfig();
-        urlToEnsure =
-          resolveConfigUrl(selected) ||
-          selected?.config?.url ||
-          PROVIDER_PRESETS[selected?.provider]?.url ||
-          null;
+        if (
+          selected?.provider &&
+          selected.provider !== "custom" &&
+          selected.provider !== "microsoft"
+        ) {
+          // 预置 AI 厂商域名已声明，无需再 request
+        } else if (selected?.provider === "custom") {
+          urlToEnsure =
+            resolveConfigUrl(selected) ||
+            selected?.config?.url ||
+            null;
+        }
       }
       if (urlToEnsure) {
         await ensureHostPermission(urlToEnsure);

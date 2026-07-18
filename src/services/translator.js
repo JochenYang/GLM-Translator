@@ -300,19 +300,28 @@ export async function translateText(text, from = "auto", to = "zh", options = {}
     throw new Error("翻译文本不能为空");
   }
 
-  const processedText = preprocessTextForTranslation(text);
-  const resolved = resolveSourceLanguage(processedText, from);
-  const effectiveFrom = resolved.sourceLang;
-  const detected = resolved.detected;
-
   const { provider, config } = await getApiConfig();
 
   try {
     let result;
+    let effectiveFrom = from;
+    let detected = null;
+    let localConfidence;
 
+    // 微软：保持 1.2.7 路径——原文直传、不 preprocess、不本地改写 from、不分策略
     if (provider === "microsoft") {
-      result = await microsoftTranslate(processedText, from === "auto" ? "auto" : effectiveFrom, to);
+      result = await microsoftTranslate(text, from, to);
+      if (result?.detectedLanguage) {
+        detected = result.detectedLanguage;
+      }
     } else {
+      // AI 提供商：标签清洗 + 本地 auto 检测
+      const processedText = preprocessTextForTranslation(text);
+      const resolved = resolveSourceLanguage(processedText, from);
+      effectiveFrom = resolved.sourceLang;
+      detected = resolved.detected;
+      localConfidence = resolved.confidence;
+
       const url = resolveEndpoint(provider, config);
       const apiKey = config?.apiKey || config?.key;
       const model =
@@ -362,7 +371,7 @@ export async function translateText(text, from = "auto", to = "zh", options = {}
       pickDetectedLanguage({
         sourceLang: from,
         localDetected: detected,
-        localConfidence: resolved.confidence,
+        localConfidence,
         providerDetected,
       })
     );
@@ -396,13 +405,26 @@ export async function translateTextChunked(
     throw new Error("翻译文本不能为空");
   }
 
-  // Supersede previous
+  // 先识别提供商：微软走轻量直达，避免 1.3.0 里分块/取消/预处理叠加
+  let provider = "microsoft";
+  try {
+    provider = (await getApiConfig()).provider || "microsoft";
+  } catch (_) {
+    /* ignore */
+  }
+
+  // 微软：一次请求，不分块、不 cancel 抢占、不 preprocess（与 1.2.7 一致）
+  if (provider === "microsoft") {
+    if (onProgress) onProgress(1, 1);
+    return await translateText(text, from, to, options);
+  }
+
+  // ── 以下仅 AI 提供商：支持取消与分块 ──
   cancelActiveTranslation();
   const controller = new AbortController();
   activeAbortController = controller;
   const requestId = ++activeRequestId;
 
-  // Combine external signal
   if (options.signal) {
     if (options.signal.aborted) {
       controller.abort();
@@ -414,17 +436,7 @@ export async function translateTextChunked(
   }
 
   const signal = controller.signal;
-
-  // 微软免费接口对连发敏感：单块尽量放大，减少 429
-  let maxChunk = 2000;
-  try {
-    const { provider } = await getApiConfig();
-    if (provider === "microsoft") maxChunk = 4500;
-  } catch (_) {
-    /* ignore */
-  }
-
-  const chunks = chunkText(text, maxChunk);
+  const chunks = chunkText(text, 2000);
   if (chunks.length === 0) {
     throw new Error("翻译文本不能为空");
   }

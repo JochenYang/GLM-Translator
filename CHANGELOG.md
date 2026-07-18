@@ -5,6 +5,16 @@ All notable changes to GLM Translator are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-07-10
+
+### Fixed
+
+- **Microsoft free translate rate limits / slowness after 1.3.0**: Reverted
+  over-aggressive client throttling (serial queue, min-interval delays, multi-
+  retry on 429) that caused more 429s and slower responses. Restored the 1.2.7
+  lean path (token cache + 401 single retry). Microsoft requests no longer go
+  through AI preprocess/chunking/cancel supersede.
+
 ## [1.3.0] - 2026-07-10
 
 ### Security

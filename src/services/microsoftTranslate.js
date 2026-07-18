@@ -1,16 +1,19 @@
 /**
- * 微软免费翻译（Edge 内置同款接口）
+ * 微软免费翻译服务
  *
- * 1. GET https://edge.microsoft.com/translate/auth → JWT
- * 2. POST https://api-edge.cognitive.microsofttranslator.com/translate
+ * 实现原理（逆向自 Edge 内置翻译）：
+ * 1. 从 edge.microsoft.com/translate/auth 获取 JWT token
+ * 2. 用 Bearer token 调 api-edge.cognitive.microsofttranslator.com/translate
  * 3. Token 缓存 + 预过期刷新 + 并发去重
- * 4. 401（token 额度用尽）→ 换 token 重试
- * 5. 429 / 短暂 403 → 退避重试，避免把接口“打爆”
  *
- * 注意：扩展 service worker 里不要强行改 User-Agent（会被忽略且易触发异常）。
+ * 配额机制：
+ * 微软的限频是 token 粒度的——每个 JWT 可用一定次数
+ * 用完返回 401 "Max count exceeded" → 自动换新 token 续命
+ * 所以没有"每日上限"，只有 per-token 的透明管理
  */
 
 // ─── 语言代码映射 ─────────────────────────────────────────────
+// 项目内使用短代码（zh/en/ja），微软使用带 region 的代码（zh-Hans/zh-Hant）
 const LANG_MAP = {
   zh: "zh-Hans",
   "zh-CN": "zh-Hans",
@@ -38,24 +41,13 @@ const LANG_MAP = {
   tr: "tr",
   hu: "hu",
   vi: "vi",
-  he: "he",
-  hi: "hi",
 };
 
-// Prefer short project codes for reverse map (zh over zh-CN when both map to zh-Hans)
+// 反向映射（微软代码 → 项目短代码）
 const REVERSE_LANG_MAP = {};
-const REVERSE_PRIORITY = ["zh", "en", "pt", "zh-TW", "zh-HK", "pt-PT", "pt-BR"];
 for (const [short, ms] of Object.entries(LANG_MAP)) {
-  if (!REVERSE_LANG_MAP[ms] || REVERSE_PRIORITY.includes(short)) {
-    // only upgrade if empty or short is preferred primary
-    if (!REVERSE_LANG_MAP[ms]) {
-      REVERSE_LANG_MAP[ms] = short;
-    }
-  }
+  REVERSE_LANG_MAP[ms] = short;
 }
-// Explicit canonical reverses
-REVERSE_LANG_MAP["zh-Hans"] = "zh";
-REVERSE_LANG_MAP["zh-Hant"] = "zh-TW";
 
 function toMicrosoftLang(code) {
   if (!code || code === "auto") return null;
@@ -66,29 +58,33 @@ function fromMicrosoftLang(msCode) {
   return REVERSE_LANG_MAP[msCode] || msCode;
 }
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 // ─── Token 管理器 ─────────────────────────────────────────────
+// 单例 — 浏览器插件生命周期内只有一个实例
 
 class TokenManager {
   constructor() {
     this.token = null;
-    this.expiresAt = 0;
-    this.refreshPromise = null;
+    this.expiresAt = 0; // 毫秒时间戳
+    this.refreshPromise = null; // 去重锁（对应 IMT 的 BP()）
   }
 
+  /**
+   * 获取有效 token
+   * 缓冲 90 秒提前刷新（token 实际有效期约 10 分钟）
+   */
   async getToken() {
-    // 缓冲 60s 提前刷新（token 约 10 分钟有效）
-    if (this.token && Date.now() < this.expiresAt - 60_000) {
+    if (this.token && Date.now() < this.expiresAt - 90_000) {
       return this.token;
     }
     return this._refresh();
   }
 
+  /**
+   * 刷新 token，带去重：并发请求只触发一次网络调用
+   */
   async _refresh() {
     if (this.refreshPromise) return this.refreshPromise;
+
     this.refreshPromise = this._doRefresh().finally(() => {
       this.refreshPromise = null;
     });
@@ -96,28 +92,24 @@ class TokenManager {
   }
 
   async _doRefresh() {
-    // MV3 service worker: do not override browser identity headers
     const response = await fetch("https://edge.microsoft.com/translate/auth", {
       method: "GET",
-      cache: "no-store",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+      },
     });
 
     if (!response.ok) {
-      const body = await response.text().catch(() => "");
       throw new Error(
-        `微软翻译 Token 获取失败 (HTTP ${response.status})${
-          body ? `: ${body.slice(0, 120)}` : ""
-        }`
+        `Token 获取失败 (HTTP ${response.status})`
       );
     }
 
-    const token = (await response.text()).trim();
-    if (!token || token.split(".").length < 2) {
-      throw new Error("微软翻译 Token 无效，请稍后重试");
-    }
-
+    const token = await response.text();
     this.token = token;
 
+    // 解析 JWT payload 获取过期时间
     try {
       const payloadBase64 = token
         .split(".")[1]
@@ -129,51 +121,31 @@ class TokenManager {
       );
       const payload = JSON.parse(atob(padded));
       this.expiresAt = (payload.exp || 0) * 1000;
-      if (!this.expiresAt) {
-        this.expiresAt = Date.now() + 8 * 60 * 1000;
-      }
     } catch {
-      this.expiresAt = Date.now() + 8 * 60 * 1000;
+      this.expiresAt = Date.now() + 5 * 60 * 1000;
     }
 
     return token;
   }
 
+  /** 强制标记 token 过期，下次 getToken 会刷新 */
   invalidate() {
-    this.token = null;
     this.expiresAt = 0;
     this.refreshPromise = null;
   }
 }
 
+// 全局单例
 const tokenManager = new TokenManager();
 
-// 全局串行队列：避免划词/分块并发打满免费接口
-let chain = Promise.resolve();
-let lastRequestAt = 0;
-const MIN_INTERVAL_MS = 280;
-
-function enqueue(task) {
-  const run = chain.then(task, task);
-  // 防止上一次 rejection 阻断队列
-  chain = run.catch(() => {});
-  return run;
-}
-
-async function throttle() {
-  const now = Date.now();
-  const wait = MIN_INTERVAL_MS - (now - lastRequestAt);
-  if (wait > 0) await sleep(wait);
-  lastRequestAt = Date.now();
-}
-
-// ─── 用量统计（仅展示）───────────────────────────────────────
+// ─── 透明的用量统计（仅显示用，不做硬限制）─────────────────────
+// 微软的限额在服务端（per-token），客户端不需要计数器拦截
+// 这里只记个数让用户在 UI 里看到 "已用 X 次"
 
 async function getUsageStats() {
-  const { msTranslateUsage } = await chrome.storage.local.get(
-    "msTranslateUsage"
-  );
+  const { msTranslateUsage } = await chrome.storage.sync.get("msTranslateUsage");
   const today = new Date().toISOString().slice(0, 10);
+
   if (!msTranslateUsage || msTranslateUsage.date !== today) {
     return { date: today, count: 0 };
   }
@@ -183,63 +155,53 @@ async function getUsageStats() {
 async function incrementUsage() {
   const stats = await getUsageStats();
   stats.count = (stats.count || 0) + 1;
-  // local 即可，不必占 sync 配额
-  await chrome.storage.local.set({ msTranslateUsage: stats });
+  await chrome.storage.sync.set({ msTranslateUsage: stats });
   return stats;
 }
 
 // ─── 核心翻译 ─────────────────────────────────────────────────
 
 /**
+ * @typedef {Object} MicrosoftTranslateResult
+ * @property {string} originalText
+ * @property {string} translatedText
+ * @property {string} from
+ * @property {string} to
+ * @property {string} [detectedLanguage]
+ * @property {number} todayCount - 今日累计翻译次数（仅统计用）
+ */
+
+/**
+ * 主翻译函数
+ * - 自动管理 token：获取 → 缓存 → 预刷新
+ * - 遇到 401（token 额度用尽）自动换新 token 重试一次
+ *
  * @param {string} text
  * @param {string} [from="auto"]
  * @param {string} [to="zh"]
  * @param {Object}  [options]
- * @param {number}  [options.retries=3]
- * @returns {Promise<object>}
+ * @param {number}  [options.retries=1]  401 时最多重试次数
+ * @returns {Promise<MicrosoftTranslateResult>}
  */
-export async function translate(
-  text,
-  from = "auto",
-  to = "zh",
-  { retries = 3 } = {}
-) {
+export async function translate(text, from = "auto", to = "zh", { retries = 1 } = {}) {
   if (!text?.trim()) {
     throw new Error("翻译文本不能为空");
   }
 
-  return enqueue(() => translateOnce(text, from, to, retries));
-}
-
-async function translateOnce(text, from, to, retries) {
   const msFrom = toMicrosoftLang(from);
   const msTo = toMicrosoftLang(to) || "zh-Hans";
 
-  let url = `https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${encodeURIComponent(
-    msTo
-  )}`;
-  if (msFrom) url += `&from=${encodeURIComponent(msFrom)}`;
+  // 构建 URL
+  let url = `https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${msTo}`;
+  if (msFrom) url += `&from=${msFrom}`;
 
-  // 微软接口支持多段；当前单段即可
   const body = JSON.stringify([{ Text: text }]);
 
+  // 尝试请求（401 时可重试）
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
-    await throttle();
-
-    let token;
-    try {
-      token = await tokenManager.getToken();
-    } catch (err) {
-      lastError = err;
-      // token 失败：短退避再试
-      if (attempt < retries) {
-        await sleep(400 * (attempt + 1));
-        tokenManager.invalidate();
-        continue;
-      }
-      break;
-    }
+    // 每次重试都用最新 token（第一次正常拿，重试时已刷新）
+    const token = await tokenManager.getToken();
 
     let response;
     try {
@@ -248,76 +210,40 @@ async function translateOnce(text, from, to, retries) {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
         },
         body,
-        cache: "no-store",
       });
     } catch (err) {
       lastError = new Error(`网络请求失败: ${err.message}`);
-      if (attempt < retries) {
-        await sleep(500 * (attempt + 1));
-        continue;
-      }
-      break;
+      break; // 网络错误不可重试
     }
 
+    // ── 正常返回 ──
     if (response.ok) {
       return await parseSuccess(response, text, from, to);
     }
 
-    // 401：token 用尽 / 过期 → 换新 token
+    // ── 401: token 额度用尽 → 刷新后重试 ──
     if (response.status === 401) {
-      tokenManager.invalidate();
-      lastError = new Error("微软翻译凭证失效，正在刷新后重试…");
-      if (attempt < retries) {
-        await sleep(200 * (attempt + 1));
-        continue;
-      }
-      break;
-    }
-
-    // 429：限流 → 退避后重试（可换 token）
-    if (response.status === 429) {
-      tokenManager.invalidate();
-      lastError = new Error("微软翻译请求过于频繁，正在自动重试…");
-      if (attempt < retries) {
-        await sleep(800 * Math.pow(2, attempt)); // 0.8s, 1.6s, 3.2s…
-        continue;
-      }
-      lastError = new Error("微软翻译请求过于频繁，请稍后再试");
-      break;
-    }
-
-    // 403：可能限流或区域限制
-    if (response.status === 403) {
-      tokenManager.invalidate();
-      const bodyText = await response.text().catch(() => "");
-      lastError = new Error(
-        bodyText.includes("Max") || bodyText.includes("count")
-          ? "微软翻译额度暂时用尽，正在刷新凭证重试…"
-          : "微软翻译服务暂时受限（403）"
+      console.warn(
+        `[Microsoft] 401 (attempt ${attempt + 1}/${retries + 1})，刷新 token 重试`
       );
-      if (attempt < retries) {
-        await sleep(600 * (attempt + 1));
-        continue;
-      }
-      lastError = new Error(
-        "微软翻译服务暂时受限，请稍后再试或切换其他翻译引擎"
-      );
-      break;
+      tokenManager.invalidate();
+      lastError = new Error("翻译额度暂时用尽，正在换新 token 重试…");
+      continue; // 进入下一轮循环，拿新 token 重试
     }
 
+    // ── 其他错误 ──
     lastError = await parseError(response);
-    // 其它 5xx 可重试
-    if (response.status >= 500 && attempt < retries) {
-      await sleep(500 * (attempt + 1));
-      continue;
-    }
     break;
   }
 
-  throw lastError || new Error("微软翻译失败");
+  throw lastError;
 }
+
+// ─── 响应解析 ─────────────────────────────────────────────────
 
 async function parseSuccess(response, text, from, to) {
   let data;
@@ -333,29 +259,23 @@ async function parseSuccess(response, text, from, to) {
 
   const item = data[0];
   const translatedText = item.translations?.[0]?.text;
-  if (!translatedText && translatedText !== "") {
+  if (!translatedText) {
     throw new Error("翻译结果为空");
   }
 
-  let stats = { count: 0 };
-  try {
-    stats = await incrementUsage();
-  } catch (_) {
-    /* 统计失败不影响翻译 */
-  }
+  // 累计用量（不影响功能）
+  const stats = await incrementUsage();
 
   const output = {
     originalText: text,
-    translatedText: translatedText || "",
+    translatedText,
     from,
     to,
     todayCount: stats.count,
   };
 
-  if (item.detectedLanguage?.language) {
-    output.detectedLanguage = fromMicrosoftLang(
-      item.detectedLanguage.language
-    );
+  if (item.detectedLanguage) {
+    output.detectedLanguage = fromMicrosoftLang(item.detectedLanguage.language);
   }
 
   return output;
@@ -364,16 +284,36 @@ async function parseSuccess(response, text, from, to) {
 async function parseError(response) {
   const status = response.status;
   const body = await response.text().catch(() => "");
+
+  if (status === 403) {
+    tokenManager.invalidate();
+    return new Error(
+      "微软翻译服务暂时受限（403），可能是请求过于频繁，请稍后重试"
+    );
+  }
+
+  if (status === 429) {
+    return new Error("微软翻译请求过于频繁，请稍后重试");
+  }
+
   return new Error(
     `微软翻译 API 错误 (HTTP ${status}): ${body || response.statusText}`
   );
 }
 
+// ─── 工具函数 ─────────────────────────────────────────────────
+
+/**
+ * 获取今日用量（仅统计，不做限制）
+ */
 export async function getUsageStatsAPI() {
   const stats = await getUsageStats();
   return { todayCount: stats.count, date: stats.date };
 }
 
+/**
+ * 测试连接
+ */
 export async function testConnection() {
   try {
     const result = await translate("Hello", "en", "zh");
@@ -386,7 +326,7 @@ export async function testConnection() {
   }
 }
 
-/** @internal test helpers */
+/** @internal 单测用 */
 export const __test__ = {
   toMicrosoftLang,
   fromMicrosoftLang,

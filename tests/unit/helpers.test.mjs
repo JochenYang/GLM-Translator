@@ -306,10 +306,12 @@ describe("microsoftTranslate helpers (shipped)", () => {
     assert.equal(msTest.toMicrosoftLang("zh"), "zh-Hans");
     assert.equal(msTest.toMicrosoftLang("en"), "en");
     assert.equal(msTest.toMicrosoftLang("auto"), null);
-    assert.equal(msTest.fromMicrosoftLang("zh-Hans"), "zh");
+    // 原版 LANG_MAP 后写覆盖：zh-CN 与 zh 均映射 zh-Hans，反向可能是 zh 或 zh-CN
+    const back = msTest.fromMicrosoftLang("zh-Hans");
+    assert.ok(back === "zh" || back === "zh-CN", `got ${back}`);
   });
 
-  it("auth URL and translate host remain Edge free endpoints", () => {
+  it("matches pre-1.3.0 lean path (no throttle queue)", () => {
     const src = readFileSync(
       join(root, "src/services/microsoftTranslate.js"),
       "utf8"
@@ -319,8 +321,12 @@ describe("microsoftTranslate helpers (shipped)", () => {
       src,
       /api-edge\.cognitive\.microsofttranslator\.com\/translate/
     );
-    // Must not set custom User-Agent header on fetch
-    assert.equal(/["']User-Agent["']\s*:/.test(src), false);
+    // 1.3.0 过度优化已回退：不得再有串行队列/强制间隔
+    assert.equal(/MIN_INTERVAL_MS/.test(src), false);
+    assert.equal(/function enqueue\(/.test(src), false);
+    assert.equal(/rateLimitRetries/.test(src), false);
+    // 401 才重试，与 1.2.7 一致
+    assert.match(src, /retries\s*=\s*1/);
   });
 });
 
