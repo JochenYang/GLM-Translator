@@ -308,9 +308,11 @@ export async function translateText(text, from = "auto", to = "zh", options = {}
     let detected = null;
     let localConfidence;
 
-    // 微软：保持 1.2.7 路径——原文直传、不 preprocess、不本地改写 from、不分策略
+    // 微软：原文直传、不 preprocess、不本地改写 from；支持 AbortSignal
     if (provider === "microsoft") {
-      result = await microsoftTranslate(text, from, to);
+      result = await microsoftTranslate(text, from, to, {
+        signal: options.signal,
+      });
       if (result?.detectedLanguage) {
         detected = result.detectedLanguage;
       }
@@ -405,7 +407,7 @@ export async function translateTextChunked(
     throw new Error("翻译文本不能为空");
   }
 
-  // 先识别提供商：微软走轻量直达，避免 1.3.0 里分块/取消/预处理叠加
+  // 先识别提供商：微软走轻量直达（不分块/不 preprocess）
   let provider = "microsoft";
   try {
     provider = (await getApiConfig()).provider || "microsoft";
@@ -413,13 +415,13 @@ export async function translateTextChunked(
     /* ignore */
   }
 
-  // 微软：一次请求，不分块、不 cancel 抢占、不 preprocess（与 1.2.7 一致）
+  // 微软：enqueue 队列已串行化，不需要 cancel 抢占（cancel 会误杀排队中的请求）
   if (provider === "microsoft") {
     if (onProgress) onProgress(1, 1);
     return await translateText(text, from, to, options);
   }
 
-  // ── 以下仅 AI 提供商：支持取消与分块 ──
+  // ── 以下仅 AI 提供商：支持取消抢占与分块 ──
   cancelActiveTranslation();
   const controller = new AbortController();
   activeAbortController = controller;
@@ -436,6 +438,8 @@ export async function translateTextChunked(
   }
 
   const signal = controller.signal;
+
+  // ── 以下仅 AI 提供商：支持分块 ──
   const chunks = chunkText(text, 2000);
   if (chunks.length === 0) {
     throw new Error("翻译文本不能为空");
@@ -570,11 +574,19 @@ export async function testProviderConnection({
   headers = {},
 }) {
   if (provider === "microsoft") {
-    const result = await microsoftTranslate("Hello", "en", "zh");
-    return {
-      success: true,
-      message: `连接成功！"Hello" → "${result.translatedText}"`,
-    };
+    // 走统一队列，避免与划词翻译并发竞争同一 token
+    try {
+      const result = await microsoftTranslate("Hello", "en", "zh");
+      return {
+        success: true,
+        message: `连接成功！"Hello" → "${result.translatedText}"`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || "连接失败",
+      };
+    }
   }
 
   const endpoint =
