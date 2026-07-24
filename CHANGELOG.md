@@ -5,6 +5,30 @@ All notable changes to GLM Translator are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-07-24
+
+### Fixed
+
+- **Microsoft free translate 429 storms**: Restored a light serial queue + 1s
+  min-interval. On 429, limited backoff respects `Retry-After`, rotates the JWT
+  token (per-token rate limit — new token recovers immediately), and sets a
+  global cooldown to block queued requests from hammering the server. After
+  retries are exhausted, a 10s cooldown is set and the user is told to wait or
+  switch engines.
+- **Throttle bug fix**: The previous cooldown check used a single `if` that
+  could re-enter the rate-limit window immediately after cooldown expired,
+  causing back-to-back requests. Now uses a `while` loop to guarantee the full
+  cooldown is served before any request proceeds.
+- **In-flight dedup**: Concurrent calls with identical text share a single
+  network request via an in-flight promise map, preventing duplicate queued
+  requests on rapid re-selection.
+- **In-memory result cache**: Identical text (same from→to) is served from an
+  LRU cache (60 entries, SW lifetime) instead of re-hitting the network.
+- **Removed forced `User-Agent`**: MV3 service worker ignores custom UA and it
+  may trigger anomalies; auth now uses `cache: "no-store"` only.
+- **Cancel/supersede**: Microsoft requests now honor `AbortSignal` via the
+  unified `translateTextChunked` cancel path.
+
 ## [1.3.1] - 2026-07-10
 
 ### Fixed

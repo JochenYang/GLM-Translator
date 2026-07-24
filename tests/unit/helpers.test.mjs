@@ -306,12 +306,11 @@ describe("microsoftTranslate helpers (shipped)", () => {
     assert.equal(msTest.toMicrosoftLang("zh"), "zh-Hans");
     assert.equal(msTest.toMicrosoftLang("en"), "en");
     assert.equal(msTest.toMicrosoftLang("auto"), null);
-    // 原版 LANG_MAP 后写覆盖：zh-CN 与 zh 均映射 zh-Hans，反向可能是 zh 或 zh-CN
-    const back = msTest.fromMicrosoftLang("zh-Hans");
-    assert.ok(back === "zh" || back === "zh-CN", `got ${back}`);
+    assert.equal(msTest.fromMicrosoftLang("zh-Hans"), "zh");
+    assert.equal(msTest.fromMicrosoftLang("zh-Hant"), "zh-TW");
   });
 
-  it("matches pre-1.3.0 lean path (no throttle queue)", () => {
+  it("keeps serial throttle + rate-limit backoff (no UA override)", () => {
     const src = readFileSync(
       join(root, "src/services/microsoftTranslate.js"),
       "utf8"
@@ -321,12 +320,12 @@ describe("microsoftTranslate helpers (shipped)", () => {
       src,
       /api-edge\.cognitive\.microsofttranslator\.com\/translate/
     );
-    // 1.3.0 过度优化已回退：不得再有串行队列/强制间隔
-    assert.equal(/MIN_INTERVAL_MS/.test(src), false);
-    assert.equal(/function enqueue\(/.test(src), false);
-    assert.equal(/rateLimitRetries/.test(src), false);
-    // 401 才重试，与 1.2.7 一致
-    assert.match(src, /retries\s*=\s*1/);
+    assert.match(src, /MIN_INTERVAL_MS/);
+    assert.match(src, /function enqueue\(/);
+    assert.match(src, /rateLimitRetries/);
+    assert.match(src, /parseRetryAfterMs/);
+    // MV3 不覆盖 User-Agent
+    assert.equal(/User-Agent/.test(src), false);
   });
 });
 
