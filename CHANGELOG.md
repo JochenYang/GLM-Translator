@@ -5,6 +5,40 @@ All notable changes to GLM Translator are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-05
+
+### Changed
+
+- **Default engine switched from Microsoft free to Youdao free**: Microsoft
+  retired `edge.microsoft.com/translate/auth`, so the Microsoft provider,
+  its token/queue machinery (`src/services/microsoftTranslate.js`), usage
+  stats, Edge host permissions and `public/icons/microsoft.png` are removed.
+  The new default `youdao` provider needs no key (official-dict web channel);
+  users with a Youdao AI Cloud `appKey/appSecret` automatically use the
+  official OpenAPI instead.
+
+### Fixed
+
+- **Youdao requests 403 inside the extension**: `dict.youdao.com` enforces an
+  `Origin` allowlist (no `Origin` or `fanyi.youdao.com` → 200, anything else
+  including `chrome-extension://` → 403, reproduced with plain HTTPS). Since
+  `fetch` cannot touch the forbidden `Origin` header, static
+  `declarativeNetRequest` rules (`public/rules/youdao_headers.json`) now strip
+  it for the two Youdao translate hosts before sending.
+
+## [1.3.3] - 2026-08-03
+
+### Fixed
+
+- **Microsoft free auth endpoint shut down**: Microsoft retired
+  `edge.microsoft.com/translate/auth` (returns 404 for all clients), so the
+  free translate path can no longer obtain a JWT. The token fetch now treats
+  404/410 as a deterministic shutdown: it raises a clear, actionable error
+  telling the user to switch engines, does not burn retries, and remembers the
+  endpoint as dead for 5 minutes to avoid re-requesting on every selection.
+  No code change can restore this endpoint — switch to a key-based engine
+  (e.g. GLM, SiliconFlow) or a custom API in Settings.
+
 ## [1.3.2] - 2026-07-24
 
 ### Fixed

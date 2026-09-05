@@ -197,11 +197,8 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
               <div>
-                <p class="font-medium text-green-800">{{ t("provider.microsoftFree") }}</p>
-                <p class="text-sm text-green-700 mt-1">{{ t("provider.microsoftFreeDesc") }}</p>
-                <p class="text-sm text-green-600 mt-1">
-                  {{ t("provider.todayUsed") }}：<span class="font-medium">{{ usageStats.todayCount || 0 }}</span> 次
-                </p>
+                <p class="font-medium text-green-800">{{ t("provider.youdaoFree") }}</p>
+                <p class="text-sm text-green-700 mt-1">{{ t("provider.youdaoFreeDesc") }}</p>
               </div>
             </div>
           </div>
@@ -495,7 +492,6 @@ import {
   createApiConfig,
 } from "../config/providers.js";
 import { testProviderConnection } from "../services/translator.js";
-import { getUsageStatsAPI } from "../services/microsoftTranslate.js";
 import {
   loadApiConfigs,
   saveApiConfigs,
@@ -532,7 +528,6 @@ export default {
       selectedApiId: null,
       // 语言依赖键，用于强制重新计算本地化数据
       languageKey: Date.now(),
-      usageStats: { todayCount: 0, date: "" },
     };
   },
   computed: {
@@ -577,7 +572,6 @@ export default {
     // 初始化语言键
     this.languageKey = Date.now();
     await this.loadCurrentConfig();
-    await this.loadUsage();
   },
   methods: {
     // 加载已保存的配置（密钥来自 local）
@@ -601,10 +595,6 @@ export default {
       });
 
       await this.loadCurrentConfig();
-
-      if (apiConfig.provider === "microsoft") {
-        await this.loadUsage();
-      }
     },
 
     // 删除已保存的配置
@@ -631,17 +621,6 @@ export default {
       } catch (error) {
         console.error("删除配置失败:", error);
         alert("删除配置失败");
-      }
-    },
-
-    // 加载微软翻译用量统计
-    async loadUsage() {
-      if (this.selectedProvider === 'microsoft') {
-        try {
-          this.usageStats = await getUsageStatsAPI();
-        } catch (error) {
-          console.error('加载用量统计失败:', error);
-        }
       }
     },
 
@@ -719,7 +698,7 @@ export default {
         hunyuan: chrome.runtime.getURL("icons/tengxunhunyuan.png"),
         tongyi: chrome.runtime.getURL("icons/tongyiqianwen.png"),
         deepseek: chrome.runtime.getURL("icons/deepseek.png"),
-        microsoft: chrome.runtime.getURL("icons/microsoft.png"),
+        youdao: chrome.runtime.getURL("icons/youdao.png"),
         custom: chrome.runtime.getURL("icons/custom.png"),
       };
       return logoMap[providerId] || null;
@@ -873,11 +852,10 @@ export default {
 
       try {
         // Memory-only test — never overwrites savedApis
-        if (this.selectedProvider === "microsoft") {
+        if (this.selectedProvider === "youdao") {
           this.testResult = await testProviderConnection({
-            provider: "microsoft",
+            provider: "youdao",
           });
-          if (this.testResult.success) await this.loadUsage();
           return;
         }
 
@@ -943,13 +921,13 @@ export default {
     async saveConfig() {
       if (!this.selectedProvider) return;
 
-      if (this.selectedProvider === "microsoft") {
+      if (this.selectedProvider === "youdao") {
         const { savedApis } = await loadApiConfigs();
         await saveApiConfigs(savedApis || [], {
-          selectedProvider: "microsoft",
+          selectedProvider: "youdao",
           selectedApiId: null,
         });
-        await chrome.storage.sync.set({ selectedProvider: "microsoft" });
+        await chrome.storage.sync.set({ selectedProvider: "youdao" });
         this.showSuccess = true;
         setTimeout(() => {
           this.showSuccess = false;

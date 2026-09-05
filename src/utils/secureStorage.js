@@ -20,10 +20,14 @@ export function splitApiSecrets(api) {
   if (!api || typeof api !== "object") {
     return { meta: api, secret: {} };
   }
-  const { apiKey, key, headers, ...rest } = api;
+  const { apiKey, key, appSecret, secret: legacySecret, headers, ...rest } = api;
   const secret = {};
   if (apiKey != null && apiKey !== "") secret.apiKey = apiKey;
   if (key != null && key !== "" && secret.apiKey == null) secret.apiKey = key;
+  if (appSecret != null && appSecret !== "") secret.appSecret = appSecret;
+  if (legacySecret != null && legacySecret !== "" && secret.appSecret == null) {
+    secret.appSecret = legacySecret;
+  }
   // Custom headers may contain Authorization — keep in local only
   if (headers && typeof headers === "object" && Object.keys(headers).length) {
     secret.headers = headers;
@@ -44,6 +48,7 @@ export function mergeApiSecrets(meta, secret = {}) {
   return {
     ...meta,
     apiKey: secret.apiKey || "",
+    appSecret: secret.appSecret || "",
     headers: secret.headers || meta.headers || {},
   };
 }
@@ -325,8 +330,8 @@ export async function getSelectedApiConfig() {
     const found = savedApis.find((a) => a.id === selectedApiId);
     if (found) return { provider: found.provider || "custom", config: found };
   }
-  if (selectedProvider === "microsoft") {
-    return { provider: "microsoft", config: { provider: "microsoft" } };
+  if (selectedProvider === "youdao") {
+    return { provider: "youdao", config: { provider: "youdao" } };
   }
   if (selectedProvider && savedApis.length) {
     const byProvider = savedApis.find((a) => a.provider === selectedProvider);
@@ -336,7 +341,7 @@ export async function getSelectedApiConfig() {
     return { provider: savedApis[0].provider || "custom", config: savedApis[0] };
   }
   return {
-    provider: selectedProvider || "microsoft",
+    provider: selectedProvider || "youdao",
     config: null,
   };
 }
@@ -348,7 +353,7 @@ export async function getSelectedApiConfig() {
  */
 export function resolveConfigUrl(api) {
   if (!api) return null;
-  if (api.provider === "microsoft") return null;
+  if (api.provider === "youdao") return null;
   const cfg = api.config;
   if (!cfg) return null;
   return cfg.url || cfg.apiUrl || null;

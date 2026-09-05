@@ -181,7 +181,7 @@ async function handleTranslateRequest(request, sender, sendResponse) {
   };
 
   try {
-    // 仅自定义 / 非预置域名才申请 optional 权限（微软等预置域已在 manifest）
+    // 仅自定义 / 非预置域名才申请 optional 权限（有道等预置域已在 manifest）
     try {
       let urlToEnsure = request.customUrl || null;
       if (!urlToEnsure) {
@@ -189,7 +189,7 @@ async function handleTranslateRequest(request, sender, sendResponse) {
         if (
           selected?.provider &&
           selected.provider !== "custom" &&
-          selected.provider !== "microsoft"
+          selected.provider !== "youdao"
         ) {
           // 预置 AI 厂商域名已声明，无需再 request
         } else if (selected?.provider === "custom") {

@@ -2,7 +2,7 @@
  * Translation service — unified chat-completions path for AI providers.
  */
 import { getStorage, setStorage } from "../utils/storage.js";
-import { translate as microsoftTranslate } from "./microsoftTranslate.js";
+import { translate as youdaoTranslate } from "./youdaoTranslate.js";
 import { chunkText } from "../utils/textChunker.js";
 import { resolveSourceLanguage } from "../utils/detectLanguage.js";
 import { getSelectedApiConfig, loadApiConfigs } from "../utils/secureStorage.js";
@@ -308,10 +308,13 @@ export async function translateText(text, from = "auto", to = "zh", options = {}
     let detected = null;
     let localConfidence;
 
-    // 微软：原文直传、不 preprocess、不本地改写 from；支持 AbortSignal
-    if (provider === "microsoft") {
-      result = await microsoftTranslate(text, from, to, {
+    // 有道：原文直传、不 preprocess；支持 AbortSignal（免 Key 词典通道 / 智云 Key 通道见 youdaoTranslate）
+    if (provider === "youdao") {
+      result = await youdaoTranslate(text, from, to, {
         signal: options.signal,
+        appKey: config?.appKey || config?.key || "",
+        appSecret: config?.appSecret || config?.secret || "",
+        translateOption: config?.translateOption || 0,
       });
       if (result?.detectedLanguage) {
         detected = result.detectedLanguage;
@@ -407,16 +410,16 @@ export async function translateTextChunked(
     throw new Error("翻译文本不能为空");
   }
 
-  // 先识别提供商：微软走轻量直达（不分块/不 preprocess）
-  let provider = "microsoft";
+  // 先识别提供商：有道走轻量直达（不分块/不 preprocess）
+  let provider = "youdao";
   try {
-    provider = (await getApiConfig()).provider || "microsoft";
+    provider = (await getApiConfig()).provider || "youdao";
   } catch (_) {
     /* ignore */
   }
 
-  // 微软：enqueue 队列已串行化，不需要 cancel 抢占（cancel 会误杀排队中的请求）
-  if (provider === "microsoft") {
+  // 有道：直达通道已内置签名，无需 cancel 抢占
+  if (provider === "youdao") {
     if (onProgress) onProgress(1, 1);
     return await translateText(text, from, to, options);
   }
@@ -573,10 +576,13 @@ export async function testProviderConnection({
   url,
   headers = {},
 }) {
-  if (provider === "microsoft") {
-    // 走统一队列，避免与划词翻译并发竞争同一 token
+  if (provider === "youdao") {
+    // 免 Key 词典通道直连测试（有智云 Key 则走 OpenAPI）
     try {
-      const result = await microsoftTranslate("Hello", "en", "zh");
+      const result = await youdaoTranslate("Hello", "en", "zh", {
+        appKey: apiKey || "",
+        appSecret: model || "",
+      });
       return {
         success: true,
         message: `连接成功！"Hello" → "${result.translatedText}"`,

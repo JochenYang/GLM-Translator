@@ -29,7 +29,7 @@ import {
   pickDetectedLanguage,
 } from "../../src/services/translator.js";
 import { normalizeGeneralSettings } from "../../src/utils/generalSettings.js";
-import { __test__ as msTest } from "../../src/services/microsoftTranslate.js";
+import { __test__ as ydTest } from "../../src/services/youdaoTranslate.js";
 import {
   speakText,
   scoreVoice,
@@ -284,6 +284,70 @@ describe("manifest least-privilege host_permissions", () => {
   });
 });
 
+describe("youdao DNR origin-strip wiring", () => {
+  it("manifest declares declarativeNetRequest + resolvable rules file", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(root, "manifest.json"), "utf8")
+    );
+    assert.ok(
+      (manifest.permissions || []).includes("declarativeNetRequest"),
+      "needs declarativeNetRequest permission"
+    );
+    const resources =
+      manifest.declarative_net_request?.rule_resources || [];
+    assert.ok(resources.length > 0, "needs rule_resources");
+    for (const r of resources) {
+      assert.equal(r.enabled, true);
+      // manifest 路径是构建产物相对路径；源码中位于 public/ 下
+      const candidates = [join(root, r.path), join(root, "public", r.path)];
+      assert.ok(
+        candidates.some((p) => {
+          try {
+            readFileSync(p, "utf8");
+            return true;
+          } catch {
+            return false;
+          }
+        }),
+        `rules file must exist: ${r.path}`
+      );
+    }
+  });
+
+  it("rules strip origin for both youdao translate hosts", () => {
+    const rules = JSON.parse(
+      readFileSync(join(root, "public/rules/youdao_headers.json"), "utf8")
+    );
+    assert.ok(Array.isArray(rules) && rules.length >= 2);
+    const ids = new Set();
+    let dictCovered = false;
+    let openapiCovered = false;
+    for (const rule of rules) {
+      assert.ok(!ids.has(rule.id), `duplicate rule id ${rule.id}`);
+      ids.add(rule.id);
+      assert.equal(rule.action?.type, "modifyHeaders");
+      const ops = rule.action?.requestHeaders || [];
+      assert.ok(
+        ops.some(
+          (h) =>
+            String(h.header).toLowerCase() === "origin" &&
+            h.operation === "remove"
+        ),
+        `rule ${rule.id} must remove origin`
+      );
+      assert.ok(
+        (rule.condition?.resourceTypes || []).includes("xmlhttprequest"),
+        `rule ${rule.id} must cover fetch/XHR`
+      );
+      const f = rule.condition?.urlFilter || "";
+      if (f.includes("dict.youdao.com")) dictCovered = true;
+      if (f.includes("openapi.youdao.com")) openapiCovered = true;
+    }
+    assert.ok(dictCovered, "jsonapi host must be covered");
+    assert.ok(openapiCovered, "openapi host must be covered");
+  });
+});
+
 describe("background translate path ensures host permission from selected config", () => {
   it("index.js loads selected config URL, not only request.customUrl", () => {
     const src = readFileSync(join(root, "src/background/index.js"), "utf8");
@@ -301,31 +365,28 @@ describe("background translate path ensures host permission from selected config
   });
 });
 
-describe("microsoftTranslate helpers (shipped)", () => {
-  it("maps zh/en and leaves auto as null from", () => {
-    assert.equal(msTest.toMicrosoftLang("zh"), "zh-Hans");
-    assert.equal(msTest.toMicrosoftLang("en"), "en");
-    assert.equal(msTest.toMicrosoftLang("auto"), null);
-    assert.equal(msTest.fromMicrosoftLang("zh-Hans"), "zh");
-    assert.equal(msTest.fromMicrosoftLang("zh-Hant"), "zh-TW");
+describe("youdaoTranslate helpers (shipped)", () => {
+  it("maps short codes to youdao codes and keeps auto", () => {
+    assert.equal(ydTest.toYoudaoLang("zh"), "zh-CHS");
+    assert.equal(ydTest.toYoudaoLang("zh-TW"), "zh-CHT");
+    assert.equal(ydTest.toYoudaoLang("en"), "en");
+    assert.equal(ydTest.toYoudaoLang("auto"), "auto");
   });
 
-  it("keeps serial throttle + rate-limit backoff (no UA override)", () => {
+  it("ships jsonapi signing + openapi params (no legacy webtranslate)", () => {
     const src = readFileSync(
-      join(root, "src/services/microsoftTranslate.js"),
+      join(root, "src/services/youdaoTranslate.js"),
       "utf8"
     );
-    assert.match(src, /edge\.microsoft\.com\/translate\/auth/);
-    assert.match(
-      src,
-      /api-edge\.cognitive\.microsofttranslator\.com\/translate/
-    );
-    assert.match(src, /MIN_INTERVAL_MS/);
-    assert.match(src, /function enqueue\(/);
-    assert.match(src, /rateLimitRetries/);
-    assert.match(src, /parseRetryAfterMs/);
-    // MV3 不覆盖 User-Agent
-    assert.equal(/User-Agent/.test(src), false);
+    assert.match(src, /jsonapi_s\?doctype=json/);
+    assert.match(src, /openapi\.youdao\.com\/api/);
+    assert.match(src, /t2he2k4m2g6QKRigK0KAmSpXKgAezywG/);
+    assert.match(src, /function buildJsonApiParams\(/);
+    assert.match(src, /function buildOpenApiParams\(/);
+    assert.match(src, /截图通道|imgtranocr/);
+    // 已降级的旧 webtranslate 通道不得作为请求目标（文档提及除外）
+    assert.equal(/fanyideskweb/.test(src), false);
+    assert.equal(/WEB_TRANSLATE_URL/.test(src), false);
   });
 });
 

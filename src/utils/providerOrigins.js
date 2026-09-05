@@ -9,8 +9,8 @@ export const KNOWN_PROVIDER_ORIGINS = [
   "https://hunyuan.tencentcloudapi.com/*",
   "https://dashscope.aliyuncs.com/*",
   "https://api.deepseek.com/*",
-  "https://edge.microsoft.com/*",
-  "https://api-edge.cognitive.microsofttranslator.com/*",
+  "https://dict.youdao.com/*",
+  "https://openapi.youdao.com/*",
 ];
 
 /**

@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [{ "header": "origin", "operation": "remove" }]
+    },
+    "condition": {
+      "urlFilter": "||dict.youdao.com/jsonapi_s",
+      "resourceTypes": ["xmlhttprequest"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [{ "header": "origin", "operation": "remove" }]
+    },
+    "condition": {
+      "urlFilter": "||openapi.youdao.com/api",
+      "resourceTypes": ["xmlhttprequest"]
+    }
+  }
+]
