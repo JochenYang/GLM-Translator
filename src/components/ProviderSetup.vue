@@ -1,486 +1,337 @@
 <template>
-  <div class="provider-setup">
-    <!-- 已保存配置列表 -->
-    <div class="mb-6">
-      <h3 class="text-lg font-semibold mb-4 text-gray-800">
-        {{ t("provider.savedConfigs") }}
-      </h3>
-      <div v-if="localizedSavedApis.length > 0" class="space-y-2">
-        <div
-          v-for="api in localizedSavedApis"
-          :key="api.id"
-          @click="selectSavedApi(api)"
-          :class="[
-            'p-3 border rounded-lg cursor-pointer transition-all duration-200',
-            selectedApiId === api.id
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50',
-          ]"
-        >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <img
-                v-if="getProviderLogo(api.provider)"
-                :src="getProviderLogo(api.provider)"
-                :alt="api.name"
-                class="w-6 h-6 object-contain"
-              />
-              <span v-else class="text-xl">{{
-                getProviderIcon(api.provider)
-              }}</span>
-              <div>
-                <p class="font-medium text-gray-800">{{ api.name }}</p>
-                <p class="text-sm text-gray-600">
-                  {{ api.localizedModelName }}
-                </p>
-              </div>
-            </div>
-            <div class="flex items-center space-x-2">
-              <span
-                v-if="api.provider === 'custom'"
-                class="text-xs text-gray-500"
-              >
-                自定义
-              </span>
-              <button
-                @click.stop="deleteApiConfig(api.id)"
-                class="text-red-500 hover:text-red-700 p-1"
-                :title="t('common.delete')"
-              >
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  ></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div
-        v-else-if="savedApis.length === 0"
-        class="text-sm text-gray-500 italic"
-      >
-        {{ t("provider.noSavedConfigs") }}
-      </div>
-    </div>
-
-    <!-- 提供商选择 -->
-    <div class="mb-6">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold text-gray-800">
-          {{ t("translate.selectProvider") }}
-        </h3>
-        <button
-          @click="showAllProviders = !showAllProviders"
-          class="text-sm text-blue-600 hover:text-blue-800 flex items-center"
-        >
-          {{
-            showAllProviders
-              ? t("provider.showRecommended")
-              : t("provider.showAll")
-          }}
-          <svg
+  <div class="space-y-5">
+    <!-- 已保存配置 -->
+    <section v-if="localizedSavedApis.length > 0" class="card-section">
+      <h2 class="section-title">{{ t("provider.savedConfigs") }}</h2>
+      <ul class="mt-4 space-y-2">
+        <li v-for="api in localizedSavedApis" :key="api.id">
+          <button
+            type="button"
+            @click="selectSavedApi(api)"
             :class="[
-              'w-4 h-4 ml-1 transition-transform',
-              showAllProviders ? 'rotate-180' : '',
+              'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+              selectedApiId === api.id
+                ? 'border-primary-500 bg-primary-50/60'
+                : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50',
             ]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+            :aria-pressed="selectedApiId === api.id"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M19 9l-7 7-7-7"
-            ></path>
+            <img
+              v-if="getProviderLogo(api.provider)"
+              :src="getProviderLogo(api.provider)"
+              :alt="api.name"
+              class="h-6 w-6 shrink-0 object-contain"
+            />
+            <span v-else class="shrink-0 text-xl">{{ getProviderIcon(api.provider) }}</span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate font-medium text-slate-800">{{ api.name }}</span>
+              <span class="block truncate text-sm text-slate-500">{{ api.localizedModelName }}</span>
+            </span>
+            <span
+              v-if="selectedApiId === api.id"
+              class="badge-primary shrink-0"
+            >{{ t("provider.inUse") }}</span>
+            <span
+              @click.stop="deleteApiConfig(api.id)"
+              role="button"
+              :aria-label="t('common.delete')"
+              tabindex="0"
+              class="shrink-0 rounded p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+              @keydown.enter.stop="deleteApiConfig(api.id)"
+              @keydown.space.stop="deleteApiConfig(api.id)"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </span>
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <!-- 引擎选择 -->
+    <section class="card-section">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="section-title">{{ t("translate.selectProvider") }}</h2>
+        <button
+          type="button"
+          @click="showAllProviders = !showAllProviders"
+          class="btn-ghost px-2 py-1 text-sm"
+        >
+          {{ showAllProviders ? t("provider.showRecommended") : t("provider.showAll") }}
+          <svg
+            :class="['h-4 w-4 transition-transform', showAllProviders ? 'rotate-180' : '']"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div
+      <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <button
           v-for="provider in localizedProviders"
           :key="provider.id"
+          type="button"
           @click="selectProvider(provider.id)"
           :class="[
-            'provider-card cursor-pointer p-4 border-2 rounded-lg transition-all duration-300',
+            'flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200',
             selectedProvider === provider.id
-              ? 'border-blue-500 bg-blue-50 shadow-lg'
-              : 'border-gray-200 hover:border-blue-300 hover:shadow-md',
+              ? 'border-primary-500 bg-primary-50/60 shadow-md'
+              : 'border-slate-200 bg-white hover:border-primary-300 hover:shadow-sm',
           ]"
+          :aria-pressed="selectedProvider === provider.id"
         >
-          <div class="flex items-start space-x-3">
-            <div class="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-              <img
-                v-if="getProviderLogo(provider.id)"
-                :src="getProviderLogo(provider.id)"
-                :alt="provider.name"
-                class="w-8 h-8 object-contain"
-              />
-              <span v-else class="text-2xl">{{ provider.icon }}</span>
-            </div>
-            <div class="flex-1">
-              <h4 class="font-semibold text-gray-800">{{ provider.name }}</h4>
-              <p class="text-sm text-gray-600 mt-1">
-                {{ provider.description }}
-              </p>
-              <div class="flex flex-wrap gap-2 mt-2">
-                <span
-                  class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded"
-                >
-                  {{ provider.pricing }}
-                </span>
-                <span
-                  v-for="feature in provider.features.slice(0, 2)"
-                  :key="feature"
-                  class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
-                >
-                  {{ feature }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 自定义API快速入口 -->
-      <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="font-medium text-gray-800">
-              ⚙️ {{ t("provider.customApi") }}
-            </h4>
-            <p class="text-sm text-gray-600">
-              {{ t("provider.customApiDesc") }}
-            </p>
-          </div>
-          <button
-            @click="selectProvider('custom')"
-            :class="[
-              'px-4 py-2 rounded-md transition-colors duration-200',
-              selectedProvider === 'custom'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50',
-            ]"
-          >
-            {{
-              selectedProvider === "custom"
-                ? t("provider.selected")
-                : t("provider.config")
-            }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- API配置 -->
-    <div v-if="selectedProvider" class="mb-6">
-      <h3 class="text-lg font-semibold mb-4 text-gray-800">
-        {{ t("translate.apiConfig") }}
-      </h3>
-      <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-        <div class="space-y-4">
-          <!-- 无需 API Key 的提示（如微软免费翻译） -->
-          <div v-if="currentProviderConfig?.noApiKeyRequired" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-            <div class="flex items-start space-x-3">
-              <svg class="w-5 h-5 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <div>
-                <p class="font-medium text-green-800">{{ t("provider.youdaoFree") }}</p>
-                <p class="text-sm text-green-700 mt-1">{{ t("provider.youdaoFreeDesc") }}</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- API Key输入（需要 API Key 的提供商） -->
-          <div v-if="!currentProviderConfig?.noApiKeyRequired">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              {{ t("translate.apiKey") }}
-              <span class="text-red-500">*</span>
-            </label>
-            <div class="relative">
-              <input
-                v-model="apiKey"
-                :type="showApiKey ? 'text' : 'password'"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                :placeholder="`请输入 ${currentProviderConfig?.name} 的 API Key`"
-              />
-              <button
-                @click="showApiKey = !showApiKey"
-                class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-              >
-                <svg
-                  v-if="showApiKey"
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  ></path>
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  ></path>
-                </svg>
-                <svg
-                  v-else
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
-                  ></path>
-                </svg>
-              </button>
-            </div>
-            <p class="text-sm text-gray-500 mt-1">
-              <a
-                :href="currentProviderConfig?.apiKeyUrl"
-                target="_blank"
-                class="text-blue-600 hover:underline"
-              >
-                {{ t(currentProviderConfig?.apiKeyHelp) }}
-              </a>
-            </p>
-          </div>
-
-          <!-- 自定义API URL（仅自定义API显示） -->
-          <div v-if="currentProviderConfig?.isCustom">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              API地址
-              <span class="text-red-500">*</span>
-            </label>
-            <input
-              v-model="customUrl"
-              type="url"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="https://api.example.com/v1/chat/completions"
-            />
-            <p class="text-sm text-gray-500 mt-1">
-              请输入兼容OpenAI格式的API地址
-            </p>
-          </div>
-
-          <!-- 模型选择（无需 API Key 的提供商不显示） -->
-          <div v-if="!currentProviderConfig?.noApiKeyRequired">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              {{ t("translate.modelSelection") }}
-            </label>
-
-            <!-- 自定义API的模型输入 -->
-            <div v-if="currentProviderConfig?.isCustom">
-              <input
-                v-model="customModel"
-                type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="请输入模型名称，如：gpt-3.5-turbo"
-              />
-              <p class="text-sm text-gray-500 mt-1">请输入您要使用的模型名称</p>
-            </div>
-
-            <!-- 预设提供商的模型选择 -->
-            <div v-else>
-              <select
-                v-model="selectedModel"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
-              >
-                <option
-                  v-for="model in currentProviderConfig?.models"
-                  :key="model.id"
-                  :value="model.id"
-                >
-                  {{ t("provider.model." + model.id) || model.name }} -
-                  {{
-                    t("provider.model." + model.id + ".desc") ||
-                    model.description
-                  }}
-                </option>
-                <option value="custom">
-                  {{ t("provider.model.custom-model") }}
-                </option>
-              </select>
-
-              <!-- 自定义模型输入框 -->
-              <div v-if="selectedModel === 'custom'" class="mt-2">
-                <input
-                  v-model="customModelName"
-                  type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  :placeholder="`请输入${currentProviderConfig?.name}的自定义模型名称`"
-                />
-                <p class="text-sm text-gray-500 mt-1">
-                  例如：{{ getModelExample() }}
-                </p>
-                <div v-if="customModelName" class="mt-1 text-sm text-green-600">
-                  ✓ 当前模型：{{ customModelName }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 测试连接 -->
-          <div class="flex items-center space-x-4">
-            <button
-              @click="testConnection"
-              :disabled="(currentProviderConfig?.noApiKeyRequired ? false : !apiKey) || testing"
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              <span v-if="testing">{{ t("provider.testing") }}</span>
-              <span v-else>{{ t("provider.testBtn") }}</span>
-            </button>
-
-            <div v-if="testResult" class="flex items-center">
-              <svg
-                v-if="testResult.success"
-                class="w-5 h-5 text-green-500 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M5 13l4 4L19 7"
-                ></path>
-              </svg>
-              <svg
-                v-else
-                class="w-5 h-5 text-red-500 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                ></path>
-              </svg>
-              <span
-                :class="testResult.success ? 'text-green-600' : 'text-red-600'"
-                class="text-sm"
-              >
-                {{ testResult.message }}
+          <img
+            v-if="getProviderLogo(provider.id)"
+            :src="getProviderLogo(provider.id)"
+            :alt="provider.name"
+            class="h-8 w-8 shrink-0 object-contain"
+          />
+          <span v-else class="flex h-8 w-8 shrink-0 items-center justify-center text-2xl">{{ provider.icon }}</span>
+          <span class="min-w-0 flex-1">
+            <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span class="font-semibold text-slate-800">{{ provider.name }}</span>
+              <span v-if="selectedProvider === provider.id" class="badge-primary">
+                {{ t("provider.inUse") }}
               </span>
-            </div>
-          </div>
+              <span
+                v-else-if="configuredProviderIds.has(provider.id)"
+                class="badge-neutral"
+              >{{ t("provider.configured") }}</span>
+            </span>
+            <span class="mt-1 block text-sm text-slate-500">{{ provider.description }}</span>
+            <span class="mt-2 flex flex-wrap gap-1.5">
+              <span class="badge-success">{{ provider.pricing }}</span>
+              <span
+                v-for="feature in provider.features.slice(0, 2)"
+                :key="feature"
+                class="badge-primary"
+              >{{ feature }}</span>
+            </span>
+          </span>
+        </button>
+      </div>
 
-          <!-- 保存按钮 -->
-          <div class="pt-4 border-t border-gray-200">
+      <!-- 自定义 API 快捷入口 -->
+      <div
+        v-if="!showAllProviders && !localizedProviders.some((p) => p.id === 'custom')"
+        class="mt-3 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4"
+      >
+        <div>
+          <p class="font-medium text-slate-800">⚙️ {{ t("provider.customApi") }}</p>
+          <p class="text-sm text-slate-500">{{ t("provider.customApiDesc") }}</p>
+        </div>
+        <button
+          type="button"
+          @click="selectProvider('custom')"
+          :class="selectedProvider === 'custom' ? 'btn-primary' : 'btn-secondary'"
+          class="px-4 py-2"
+        >
+          {{ selectedProvider === "custom" ? t("provider.selected") : t("provider.config") }}
+        </button>
+      </div>
+    </section>
+
+    <!-- API 配置 -->
+    <section v-if="selectedProvider" class="card-section">
+      <h2 class="section-title">{{ t("translate.apiConfig") }}</h2>
+
+      <div class="mt-4 space-y-4">
+        <!-- 免 Key 引擎提示 -->
+        <div v-if="currentProviderConfig?.noApiKeyRequired" class="notice-success flex items-start gap-3">
+          <svg class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p class="font-medium">{{ t("provider.freeEngine") }}</p>
+            <p class="mt-1">{{ t("provider.freeEngineDesc") }}</p>
+          </div>
+        </div>
+
+        <!-- API Key -->
+        <div v-if="!currentProviderConfig?.noApiKeyRequired">
+          <label class="field-label" for="api-key-input">
+            {{ t("translate.apiKey") }} <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <div class="relative">
+            <input
+              id="api-key-input"
+              v-model="apiKey"
+              :type="showApiKey ? 'text' : 'password'"
+              class="input pr-10"
+              :placeholder="`请输入 ${currentProviderConfig?.name} 的 API Key`"
+              :autocomplete="showApiKey ? 'off' : 'new-password'"
+            />
             <button
-              @click="saveConfig"
-              :disabled="currentProviderConfig?.noApiKeyRequired ? false : !apiKey"
-              class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+              type="button"
+              @click="showApiKey = !showApiKey"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+              :aria-label="showApiKey ? t('common.hide') : t('common.show')"
             >
-              {{ t("provider.saveConfig") }}
+              <svg v-if="showApiKey" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+              </svg>
             </button>
           </div>
+          <p v-if="currentProviderConfig?.apiKeyUrl" class="field-hint">
+            <a
+              :href="currentProviderConfig?.apiKeyUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-primary-600 hover:underline"
+            >{{ t(currentProviderConfig?.apiKeyHelp) }}</a>
+          </p>
         </div>
-      </div>
-    </div>
 
-    <!-- 当前配置状态 -->
-    <div v-if="selectedProvider && (apiKey || customUrl)" class="mb-6">
-      <h3 class="text-lg font-semibold mb-4 text-gray-800">
-        {{ t("provider.configStatus") }}
-      </h3>
-      <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between">
-            <span class="text-gray-600">{{ t("provider.provider") }}</span>
-            <span class="font-medium">{{ currentProviderConfig?.name }}</span>
-          </div>
-          <div
-            v-if="currentProviderConfig?.isCustom"
-            class="flex justify-between"
-          >
-            <span class="text-gray-600">{{ t("provider.url") }}</span>
-            <span class="font-medium text-xs">{{
-              customUrl || t("provider.notSet")
-            }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600">{{ t("provider.model") }}</span>
-            <span class="font-medium">{{
-              getFinalModelName() || t("provider.notSet")
-            }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600">{{ t("provider.apiKey") }}</span>
-            <span class="font-medium">{{
-              apiKey
-                ? t("provider.apiKeySet") + " (" + apiKey.slice(0, 8) + "...)"
-                : t("provider.notSet")
-            }}</span>
-          </div>
+        <!-- 自定义 API 地址 -->
+        <div v-if="currentProviderConfig?.isCustom">
+          <label class="field-label" for="custom-api-url">
+            {{ t("translate.apiUrl") }} <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <input
+            id="custom-api-url"
+            v-model="customUrl"
+            type="url"
+            class="input"
+            placeholder="https://api.example.com/v1/chat/completions"
+          />
+          <p class="field-hint">{{ t("provider.apiUrlDesc") }}</p>
         </div>
+
+        <!-- 模型选择 -->
+        <div v-if="!currentProviderConfig?.noApiKeyRequired">
+          <label class="field-label" for="model-select">
+            {{ t("translate.modelSelection") }}
+          </label>
+
+          <input
+            v-if="currentProviderConfig?.isCustom"
+            id="model-select"
+            v-model="customModel"
+            type="text"
+            class="input"
+            :placeholder="t('provider.modelPlaceholder')"
+          />
+          <template v-else>
+            <select id="model-select" v-model="selectedModel" class="select">
+              <option
+                v-for="model in currentProviderConfig?.models"
+                :key="model.id"
+                :value="model.id"
+              >
+                {{ modelLabel(model) }}
+              </option>
+              <option value="custom">{{ t("provider.model.custom-model") }}</option>
+            </select>
+
+            <div v-if="selectedModel === 'custom'" class="mt-2">
+              <input
+                v-model="customModelName"
+                type="text"
+                class="input"
+                :placeholder="`请输入${currentProviderConfig?.name}的自定义模型名称`"
+              />
+              <p class="field-hint">{{ t("provider.exampleModel", { examples: getModelExample() }) }}</p>
+            </div>
+          </template>
+        </div>
+
+        <!-- 操作区 -->
+        <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            @click="testConnection"
+            :disabled="(currentProviderConfig?.noApiKeyRequired ? false : !apiKey) || testing"
+            class="btn-secondary px-4 py-2"
+          >
+            <svg v-if="testing" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            {{ testing ? t("provider.testing") : t("provider.testBtn") }}
+          </button>
+
+          <button
+            type="button"
+            @click="saveConfig"
+            :disabled="currentProviderConfig?.noApiKeyRequired ? false : !apiKey"
+            class="btn-primary px-4 py-2"
+          >
+            {{ t("provider.saveConfig") }}
+          </button>
+
+          <p v-if="testResult" class="min-w-0 flex-1 basis-full sm:basis-auto" :class="testResult.success ? 'text-sm text-emerald-700' : 'text-sm text-red-600'">
+            <span class="inline-flex items-center gap-1">
+              <svg v-if="testResult.success" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <svg v-else class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <span class="min-w-0 break-words">{{ testResult.message }}</span>
+            </span>
+          </p>
+        </div>
+
+        <!-- 当前配置摘要 -->
+        <dl
+          v-if="apiKey || customUrl"
+          class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg bg-slate-50 p-4 text-sm"
+        >
+          <dt class="text-slate-500">{{ t("provider.provider") }}</dt>
+          <dd class="font-medium text-slate-800">{{ currentProviderConfig?.name }}</dd>
+          <template v-if="currentProviderConfig?.isCustom">
+            <dt class="text-slate-500">{{ t("provider.url") }}</dt>
+            <dd class="break-all font-medium text-slate-800">{{ customUrl || t("provider.notSet") }}</dd>
+          </template>
+          <dt class="text-slate-500">{{ t("provider.model") }}</dt>
+          <dd class="font-medium text-slate-800">{{ getFinalModelName() || t("provider.notSet") }}</dd>
+          <dt class="text-slate-500">{{ t("provider.apiKey") }}</dt>
+          <dd class="font-medium text-slate-800">
+            {{ apiKey ? t("provider.apiKeySet") + " (" + apiKey.slice(0, 8) + "...)" : t("provider.notSet") }}
+          </dd>
+        </dl>
       </div>
-    </div>
+    </section>
 
     <!-- 设置指南 -->
-    <div v-if="selectedProvider && currentProviderConfig" class="mb-6">
-      <h3 class="text-lg font-semibold mb-4 text-gray-800">
-        {{ t("provider.setupGuide") }}
-      </h3>
-      <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
-        <ol class="list-decimal list-inside space-y-2 text-sm text-blue-800">
-          <li
-            v-for="(step, index) in getSetupGuideSteps(selectedProvider)"
-            :key="index"
-          >
-            {{ step }}
-          </li>
-        </ol>
-      </div>
-    </div>
+    <section
+      v-if="selectedProvider && currentProviderConfig"
+      class="rounded-xl border border-primary-100 bg-primary-50/50 p-5"
+    >
+      <h2 class="section-title text-primary-900">{{ t("provider.setupGuide") }}</h2>
+      <ol class="mt-3 list-inside list-decimal space-y-1.5 text-sm text-primary-800">
+        <li v-for="(step, index) in getSetupGuideSteps(selectedProvider)" :key="index">
+          {{ step }}
+        </li>
+      </ol>
+    </section>
 
     <!-- 成功提示 -->
-    <div
-      v-if="showSuccess"
-      class="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded shadow-lg z-50"
+    <transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="translate-y-2 opacity-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-to-class="translate-y-2 opacity-0"
     >
-      <div class="flex items-center">
-        <svg
-          class="w-5 h-5 mr-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M5 13l4 4L19 7"
-          ></path>
+      <div
+        v-if="showSuccess"
+        class="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-lg"
+        role="status"
+      >
+        <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
-        配置保存成功！
+        {{ t("translate.saveSuccess") }}
       </div>
-    </div>
+    </transition>
   </div>
 </template>
 
@@ -548,6 +399,10 @@ export default {
       return this.displayProviders.map((provider) =>
         this.getLocalizedProvider(provider)
       );
+    },
+    // 已保存过配置的提供商集合（用于卡片“已配置”标记）
+    configuredProviderIds() {
+      return new Set((this.savedApis || []).map((api) => api.provider));
     },
     // 计算属性：获取本地化后的已保存配置列表
     localizedSavedApis() {
@@ -633,7 +488,6 @@ export default {
     // 显示成功消息
     showSuccessMessage(message) {
       this.showSuccess = true;
-      const originalText = message;
       setTimeout(() => {
         this.showSuccess = false;
       }, 2000);
@@ -699,6 +553,7 @@ export default {
         tongyi: chrome.runtime.getURL("icons/tongyiqianwen.png"),
         deepseek: chrome.runtime.getURL("icons/deepseek.png"),
         youdao: chrome.runtime.getURL("icons/youdao.png"),
+        microsoft: chrome.runtime.getURL("icons/microsoft.png"),
         custom: chrome.runtime.getURL("icons/custom.png"),
       };
       return logoMap[providerId] || null;
@@ -852,9 +707,9 @@ export default {
 
       try {
         // Memory-only test — never overwrites savedApis
-        if (this.selectedProvider === "youdao") {
+        if (this.selectedProvider === "youdao" || this.selectedProvider === "microsoft") {
           this.testResult = await testProviderConnection({
-            provider: "youdao",
+            provider: this.selectedProvider,
           });
           return;
         }
@@ -921,13 +776,12 @@ export default {
     async saveConfig() {
       if (!this.selectedProvider) return;
 
-      if (this.selectedProvider === "youdao") {
+      if (this.currentProviderConfig?.noApiKeyRequired) {
         const { savedApis } = await loadApiConfigs();
         await saveApiConfigs(savedApis || [], {
-          selectedProvider: "youdao",
+          selectedProvider: this.selectedProvider,
           selectedApiId: null,
         });
-        await chrome.storage.sync.set({ selectedProvider: "youdao" });
         this.showSuccess = true;
         setTimeout(() => {
           this.showSuccess = false;
@@ -1009,11 +863,11 @@ export default {
 
       const examples = {
         glm: "glm-4-flash, glm-4-air, glm-4-flashx",
-        volcengine: "doubao-lite-4k, doubao-pro-128k",
-        siliconflow: "Qwen/Qwen2.5-72B-Instruct, deepseek-ai/DeepSeek-V2.5",
-        hunyuan: "hunyuan-lite, hunyuan-standard, hunyuan-pro",
-        tongyi: "qwen-turbo, qwen-plus, qwen-max, qwen2.5-72b-instruct",
-        deepseek: "deepseek-chat, deepseek-coder",
+        volcengine: "doubao-seed-1-6-flash-250615, doubao-1-5-pro-32k-250115",
+        siliconflow: "Qwen/Qwen3-8B, deepseek-ai/DeepSeek-V3",
+        hunyuan: "hunyuan-lite, hunyuan-turbos-latest",
+        tongyi: "qwen-mt-flash, qwen-plus-latest, qwen3-max",
+        deepseek: "deepseek-chat, deepseek-reasoner",
         openai: "gpt-4o, gpt-4o-mini, gpt-3.5-turbo",
         claude: "claude-3-5-sonnet-20241022, claude-3-haiku-20240307",
       };
@@ -1066,8 +920,21 @@ export default {
       }
     },
 
+    // 模型选项显示名：优先 i18n 键（存在才用），否则回退 providers.js 的名称/描述。
+    // t() 缺键时返回键名本身，因此必须比较后才能决定是否回退。
+    modelLabel(model) {
+      const nameKey = `provider.model.${model.id}`;
+      const descKey = `${nameKey}.desc`;
+      const name = t(nameKey);
+      const desc = t(descKey);
+      const resolvedName = name !== nameKey ? name : model.name;
+      const resolvedDesc = desc !== descKey ? desc : model.description;
+      return `${resolvedName} - ${resolvedDesc}`;
+    },
+
     // 获取本地化的模型名称
     getLocalizedModelName(modelId) {
+      if (!modelId) return "";
       const modelKey = `provider.model.${modelId}`;
       const translated = this.t(modelKey);
       return translated === modelKey ? modelId : translated;
@@ -1075,13 +942,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.provider-card {
-  transition: all 0.3s ease;
-}
-
-.provider-card:hover {
-  transform: translateY(-2px);
-}
-</style>

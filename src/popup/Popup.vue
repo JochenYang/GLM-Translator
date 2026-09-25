@@ -54,12 +54,6 @@
             </option>
           </optgroup>
         </select>
-        <span
-          v-if="detectedLabel"
-          class="detected-badge"
-          :title="detectedLabel"
-          >{{ detectedLabel }}</span
-        >
       </div>
 
       <!-- 设置按钮 -->
@@ -82,6 +76,34 @@
           ></path>
         </svg>
       </button>
+    </div>
+
+    <!-- 引擎切换行 -->
+    <div class="engine-row">
+      <label class="engine-label" for="engine-select">{{
+        translate("popup.engineLabel")
+      }}</label>
+      <select
+        id="engine-select"
+        v-model="currentProvider"
+        class="engine-select"
+        @change="onEngineChange"
+      >
+        <option
+          v-for="engine in engineOptions"
+          :key="engine.id"
+          :value="engine.id"
+        >
+          {{ engine.name }}
+        </option>
+      </select>
+      <span v-if="engineHint" class="engine-hint">{{ engineHint }}</span>
+      <span
+        v-if="detectedLabel"
+        class="detected-badge"
+        :title="detectedLabel"
+        >{{ detectedLabel }}</span
+      >
     </div>
 
     <!-- 翻译区域 -->
@@ -147,6 +169,12 @@ import {
 } from "../utils/i18n.js";
 import { getPinyinLetter } from "../utils/pinyin.js";
 import { resolveSourceLanguage } from "../utils/detectLanguage.js";
+import {
+  getSelectedApiConfig,
+  loadApiConfigs,
+  saveApiConfigs,
+} from "../utils/secureStorage.js";
+import { getProviderConfig } from "../config/providers.js";
 
 export default {
   name: "Popup",
@@ -164,7 +192,98 @@ export default {
     const currentLanguage = ref("zh");
     const forceUpdateKey = ref(0); // 用于强制更新的键
     const detectedCode = ref(null);
+    const currentProvider = ref("microsoft");
+    const engineHint = ref("");
+    let previousProvider = "microsoft"; // 切换失败时回退
     let resizeObserverRef = null; // ResizeObserver 引用，用于 onUnmounted 断开
+
+    // ─── 引擎切换 ────────────────────────────────────────────
+    // 免 Key 引擎始终可选；AI 引擎仅在设置页保存过配置后出现
+    const engineOptions = computed(() => {
+      forceUpdateKey.value;
+      const options = [];
+      const seen = new Set();
+      for (const id of ["microsoft", "youdao"]) {
+        options.push({
+          id,
+          name: engineDisplayName(id),
+        });
+        seen.add(id);
+      }
+      for (const api of savedApisForEngines.value) {
+        if (seen.has(api.provider)) continue;
+        seen.add(api.provider);
+        options.push({
+          id: api.provider,
+          name: engineDisplayName(api.provider),
+        });
+      }
+      return options;
+    });
+
+    const savedApisForEngines = ref([]);
+
+    function engineDisplayName(providerId) {
+      const key = `provider.name.${providerId}`;
+      const localized = t(key);
+      if (localized && localized !== key) return localized;
+      return getProviderConfig(providerId)?.name || providerId;
+    }
+
+    async function loadCurrentEngine() {
+      try {
+        const { savedApis } = await loadApiConfigs();
+        savedApisForEngines.value = savedApis || [];
+        const { provider } = await getSelectedApiConfig();
+        if (provider && engineOptions.value.some((e) => e.id === provider)) {
+          currentProvider.value = provider;
+        }
+      } catch (error) {
+        console.error("加载翻译引擎失败:", error);
+      }
+    }
+
+    async function onEngineChange() {
+      const target = currentProvider.value;
+      const prev = engineOptions.value.some((e) => e.id === previousProvider)
+        ? previousProvider
+        : "microsoft";
+      try {
+        const { savedApis } = await loadApiConfigs();
+        const preset = getProviderConfig(target);
+        if (preset?.noApiKeyRequired) {
+          await saveApiConfigs(savedApis || [], {
+            selectedProvider: target,
+            selectedApiId: null,
+          });
+        } else {
+          const candidates = (savedApis || []).filter(
+            (a) => a.provider === target
+          );
+          if (!candidates.length) {
+            engineHint.value = translate("popup.engineNeedsConfig");
+            currentProvider.value = prev;
+            return;
+          }
+          const { selectedApiId } = await loadApiConfigs();
+          const api =
+            candidates.find((a) => a.id === selectedApiId) || candidates[0];
+          await saveApiConfigs(savedApis || [], {
+            selectedProvider: target,
+            selectedApiId: api.id,
+          });
+        }
+        previousProvider = target;
+        engineHint.value = "";
+        if (inputText.value.trim()) {
+          await handleTranslate();
+        }
+      } catch (error) {
+        console.error("切换翻译引擎失败:", error);
+        engineHint.value = translate("popup.engineSwitchFailed");
+        currentProvider.value = prev;
+      }
+    }
 
     const progressText = computed(() => {
       if (!isTranslating.value) return translate("popup.translating");
@@ -539,6 +658,9 @@ export default {
           targetLang.value = settings.general.targetLang || "zh";
         }
 
+        // 加载当前翻译引擎
+        await loadCurrentEngine();
+
         // 确保输入框和结果区域高度自适应初始内容
         nextTick(() => {
           // 延迟一点点时间确保DOM完全就绪
@@ -620,6 +742,10 @@ export default {
       currentLanguage,
       translate,
       getLanguageDisplayName,
+      currentProvider,
+      engineOptions,
+      engineHint,
+      onEngineChange,
     };
   },
 };
@@ -633,8 +759,8 @@ export default {
 }
 
 .language-select {
-  @apply block text-sm border border-gray-200 rounded-md 
-         focus:ring-1 focus:ring-blue-500 focus:border-blue-500
+  @apply block text-sm border border-gray-200 rounded-md
+         focus:ring-1 focus:ring-primary-500 focus:border-primary-500
          bg-white shadow-sm;
   height: 32px;
   padding: 0 8px;
@@ -652,9 +778,40 @@ export default {
 
 .detected-badge {
   font-size: 11px;
-  color: #64748b;
+  color: var(--gt-text-secondary);
   margin-left: 6px;
   max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engine-row {
+  display: flex;
+  align-items: center;
+  margin: -8px 0 12px;
+}
+
+.engine-label {
+  font-size: 12px;
+  color: var(--gt-text-secondary);
+  margin-right: 6px;
+}
+
+.engine-select {
+  @apply block text-sm border rounded-md
+         focus:ring-1 focus:ring-primary-500 focus:border-primary-500
+         bg-white shadow-sm;
+  border-color: var(--gt-border);
+  height: 28px;
+  padding: 0 8px;
+  width: 180px;
+}
+
+.engine-hint {
+  font-size: 11px;
+  color: var(--gt-warning);
+  margin-left: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -672,7 +829,7 @@ export default {
 .settings-icon {
   width: 20px;
   height: 20px;
-  color: #4a5568;
+  color: var(--gt-text);
 }
 
 .translation-content {
@@ -691,11 +848,11 @@ export default {
   min-height: 120px;
   max-height: 500px; /* 增加最大高度，可容纳更多文本 */
   padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid var(--gt-border);
+  border-radius: var(--gt-radius-sm);
   font-size: 14px;
   line-height: 1.5;
-  color: #1a202c;
+  color: var(--gt-text);
   resize: vertical;
   outline: none;
   transition: border-color 0.2s;
@@ -703,8 +860,8 @@ export default {
 }
 
 .input-area:focus {
-  border-color: #4299e1;
-  box-shadow: 0 0 0 1px rgba(66, 153, 225, 0.5);
+  border-color: var(--gt-primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gt-primary) 50%, transparent);
 }
 
 .char-count {
@@ -712,7 +869,7 @@ export default {
   bottom: 8px;
   right: 12px;
   font-size: 12px;
-  color: #a0aec0;
+  color: var(--gt-text-muted);
 }
 
 .result-area {
@@ -721,11 +878,11 @@ export default {
   max-height: 500px; /* 增加最大高度，与输入区域一致 */
   overflow-y: auto;
   padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid var(--gt-border);
+  border-radius: var(--gt-radius-sm);
   font-size: 14px;
   line-height: 1.5;
-  background: #f8fafc;
+  background: var(--gt-surface-muted);
   position: relative;
 }
 
@@ -733,18 +890,18 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #a0aec0;
+  color: var(--gt-text-muted);
 }
 
 .result-text {
   white-space: pre-wrap;
   word-break: break-word;
-  color: #2d3748;
+  color: var(--gt-text);
   margin-bottom: 30px; /* 为底部操作按钮留出空间 */
 }
 
 .empty-result {
-  color: #a0aec0;
+  color: var(--gt-text-muted);
   font-style: italic;
   text-align: center;
 }
@@ -777,7 +934,7 @@ export default {
 .action-icon {
   width: 16px;
   height: 16px;
-  color: #4a5568;
+  color: var(--gt-text);
 }
 
 /* 滚动条样式 */
@@ -786,24 +943,24 @@ export default {
 }
 
 .result-area::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--gt-surface-muted);
   border-radius: 3px;
 }
 
 .result-area::-webkit-scrollbar-thumb {
-  background: #cbd5e0;
+  background: var(--gt-text-muted);
   border-radius: 3px;
 }
 
 .result-area::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
+  background: var(--gt-text-secondary);
 }
 
 .loading-state {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #a0aec0;
+  color: var(--gt-text-muted);
   justify-content: center;
   padding: 20px 0;
 }
@@ -811,8 +968,8 @@ export default {
 .loading-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid #e2e8f0;
-  border-top: 2px solid #4299e1;
+  border: 2px solid var(--gt-border);
+  border-top: 2px solid var(--gt-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

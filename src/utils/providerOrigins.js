@@ -11,6 +11,7 @@ export const KNOWN_PROVIDER_ORIGINS = [
   "https://api.deepseek.com/*",
   "https://dict.youdao.com/*",
   "https://openapi.youdao.com/*",
+  "https://edge.microsoft.com/*",
 ];
 
 /**

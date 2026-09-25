@@ -1,370 +1,359 @@
 <template>
-  <div
-    class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50"
-  >
+  <div class="min-h-screen bg-slate-50 text-slate-800">
+    <!-- 顶部栏 -->
     <header
-      class="bg-white/80 backdrop-blur-md shadow-lg border-b border-white/20"
+      class="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur"
     >
-      <div
-        class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center"
-      >
-        <div class="flex items-center">
-          <img :src="logoUrl" alt="GLM Translator" class="h-8 w-auto mr-3" />
-          <h1 class="text-xl font-semibold text-gray-800">
-            {{ t("settings.title") }}
-          </h1>
-        </div>
+      <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
+        <img
+          :src="logoUrl"
+          alt="GLM Translator"
+          class="h-8 w-auto"
+        />
+        <h1 class="text-base font-semibold">
+          {{ t("settings.title") }}
+        </h1>
 
-        <div class="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
-          <button
-            @click="switchLanguage('zh')"
-            :class="[
-              'px-3 py-1 rounded-md text-sm font-medium transition-all duration-200',
-              currentLanguage === 'zh'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800',
-            ]"
+        <div class="ml-auto flex items-center gap-3">
+          <div
+            class="flex items-center rounded-lg bg-slate-100 p-1"
+            role="group"
+            :aria-label="t('settings.language.title')"
           >
-            {{ t("lang.chinese") }}
-          </button>
-          <button
-            @click="switchLanguage('en')"
-            :class="[
-              'px-3 py-1 rounded-md text-sm font-medium transition-all duration-200',
-              currentLanguage === 'en'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800',
-            ]"
-          >
-            {{ t("lang.english") }}
-          </button>
-        </div>
-
-        <div class="text-sm text-gray-500">
-          {{ t("settings.version") }} {{ version }}
+            <button
+              v-for="lang in ['zh', 'en']"
+              :key="lang"
+              @click="switchLanguage(lang)"
+              :class="[
+                'rounded-md px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+                currentLanguage === lang
+                  ? 'bg-white text-primary-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900',
+              ]"
+            >
+              {{ lang === "zh" ? t("lang.chinese") : t("lang.english") }}
+            </button>
+          </div>
+          <span class="badge-neutral">v{{ version }}</span>
         </div>
       </div>
     </header>
 
-    <main class="max-w-4xl mx-auto px-4 py-8">
-      <div class="mb-8">
-        <nav class="flex flex-wrap gap-4 border-b border-gray-200">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            @click="activeTab = tab.id"
-            :class="[
-              'py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200',
-              activeTab === tab.id
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-            ]"
-          >
-            {{ tab.label }}
-          </button>
-        </nav>
-      </div>
-
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div v-if="activeTab === 'provider'">
-          <ProviderSetup />
-        </div>
-
-        <div v-else-if="activeTab === 'general'" class="space-y-6">
-          <div>
-            <h3 class="text-lg font-semibold mb-4 text-gray-800">
-              {{ t("settings.language.title") }}
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  {{ t("settings.language.defaultSource") }}
-                </label>
-                <select
-                  v-model="settings.sourceLang"
-                  @change="saveSettings"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="auto">{{ t("lang.auto") }}</option>
-                  <option
-                    v-for="(name, code) in languageOptions"
-                    :key="code"
-                    :value="code"
-                  >
-                    {{ getLanguageDisplayName(code) }}
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  {{ t("settings.language.defaultTarget") }}
-                </label>
-                <select
-                  v-model="settings.targetLang"
-                  @change="saveSettings"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option
-                    v-for="(name, code) in languageOptions"
-                    :key="code"
-                    :value="code"
-                  >
-                    {{ getLanguageDisplayName(code) }}
-                  </option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="text-lg font-semibold mb-4 text-gray-800">
-              {{ t("settings.selection.title") }}
-            </h3>
-            <div class="space-y-4">
-              <div class="flex items-center">
-                <input
-                  id="enableSelection"
-                  v-model="settings.enableSelection"
-                  @change="saveSettings"
-                  type="checkbox"
-                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label
-                  for="enableSelection"
-                  class="ml-2 block text-sm text-gray-700"
-                >
-                  {{ t("settings.selection.enable") }}
-                </label>
-              </div>
-              <div v-if="settings.enableSelection" class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    {{ t("settings.selection.triggerMethod") }}
-                  </label>
-                  <div class="space-y-2">
-                    <div class="flex items-center">
-                      <input
-                        id="trigger-icon"
-                        v-model="settings.selectionTrigger"
-                        @change="saveSettings"
-                        type="radio"
-                        value="icon"
-                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <label
-                        for="trigger-icon"
-                        class="ml-2 block text-sm text-gray-700"
-                      >
-                        {{ t("settings.selection.showIcon") }}
-                      </label>
-                    </div>
-                    <div class="flex items-center">
-                      <input
-                        id="trigger-instant"
-                        v-model="settings.selectionTrigger"
-                        @change="saveSettings"
-                        type="radio"
-                        value="instant"
-                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <label
-                        for="trigger-instant"
-                        class="ml-2 block text-sm text-gray-700"
-                      >
-                        {{ t("settings.selection.instantTranslate") }}
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    最短选中字符数
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="500"
-                    v-model.number="settings.minSelectionLength"
-                    @change="saveSettings"
-                    class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p class="text-xs text-gray-500 mt-1">
-                    短于该长度的选中不会触发划词翻译
-                  </p>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    划词黑名单域名
-                  </label>
-                  <textarea
-                    v-model="blacklistText"
-                    @change="saveBlacklist"
-                    rows="4"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                    placeholder="每行一个域名，例如：&#10;github.com&#10;docs.google.com"
-                  ></textarea>
-                  <p class="text-xs text-gray-500 mt-1">
-                    匹配该域名及其子域名时禁用划词翻译
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 语音朗读预览 -->
-          <div>
-            <h3 class="text-lg font-semibold mb-2 text-gray-800">
-              语音朗读预览
-            </h3>
-            <p class="text-sm text-gray-500 mb-4">
-              划词翻译结果窗的「朗读」与此处相同：优先本机高质量音色；中文若只有机械 Desktop
-              音，会自动使用在线自然音（需可访问 Google）。
-            </p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <!-- 中文 -->
-              <div
-                class="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3"
-              >
-                <div class="flex items-center justify-between gap-2">
-                  <span class="font-medium text-gray-800">中文预览</span>
-                  <button
-                    type="button"
-                    @click="previewSpeak('zh')"
-                    :disabled="speakingPreview === 'zh'"
-                    class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-                  >
-                    {{ speakingPreview === "zh" ? "播放中…" : "试听中文" }}
-                  </button>
-                </div>
-                <p class="text-sm text-gray-700 leading-relaxed">
-                  {{ voiceSamples.zh }}
-                </p>
-                <p class="text-xs text-gray-500">
-                  当前引擎：{{ voiceEngines.zh.voiceName }}
-                </p>
-                <p class="text-xs text-gray-400">{{ voiceEngines.zh.detail }}</p>
-              </div>
-              <!-- 英文 -->
-              <div
-                class="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3"
-              >
-                <div class="flex items-center justify-between gap-2">
-                  <span class="font-medium text-gray-800">English preview</span>
-                  <button
-                    type="button"
-                    @click="previewSpeak('en')"
-                    :disabled="speakingPreview === 'en'"
-                    class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-                  >
-                    {{
-                      speakingPreview === "en" ? "Playing…" : "试听英文"
-                    }}
-                  </button>
-                </div>
-                <p class="text-sm text-gray-700 leading-relaxed">
-                  {{ voiceSamples.en }}
-                </p>
-                <p class="text-xs text-gray-500">
-                  当前引擎：{{ voiceEngines.en.voiceName }}
-                </p>
-                <p class="text-xs text-gray-400">{{ voiceEngines.en.detail }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="activeTab === 'history'" class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800">翻译历史</h3>
+    <main class="mx-auto max-w-5xl px-6 py-6">
+      <div class="grid gap-6 md:grid-cols-[210px_minmax(0,1fr)]">
+        <!-- 侧边导航 -->
+        <nav
+          class="md:sticky md:top-[72px] md:self-start"
+          :aria-label="t('settings.title')"
+        >
+          <div class="card flex gap-1 p-2 md:flex-col">
             <button
-              @click="clearHistory"
-              class="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50"
+              v-for="tab in tabs"
+              :key="tab.id"
+              @click="activeTab = tab.id"
+              :class="['nav-item', activeTab === tab.id ? 'nav-item-active' : '']"
+              :aria-current="activeTab === tab.id ? 'page' : undefined"
             >
-              清空历史
+              <svg
+                class="h-4 w-4 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path :d="tab.icon" />
+              </svg>
+              {{ tab.label }}
             </button>
           </div>
-          <div v-if="history.length === 0" class="text-sm text-gray-500 italic">
-            暂无翻译历史
+        </nav>
+
+        <!-- 内容区 -->
+        <div class="min-w-0">
+          <!-- 翻译服务 -->
+          <ProviderSetup v-if="activeTab === 'provider'" />
+
+          <!-- 通用设置 -->
+          <div v-else-if="activeTab === 'general'" class="space-y-5">
+            <!-- 语言设置 -->
+            <section class="card-section">
+              <h2 class="section-title">
+                {{ t("settings.language.title") }}
+              </h2>
+              <div class="mt-4 grid gap-4 md:grid-cols-2">
+                <div>
+                  <label class="field-label" for="default-source">
+                    {{ t("settings.language.defaultSource") }}
+                  </label>
+                  <select
+                    id="default-source"
+                    v-model="settings.sourceLang"
+                    class="select"
+                    @change="saveSettings"
+                  >
+                    <option value="auto">{{ t("lang.auto") }}</option>
+                    <option
+                      v-for="(name, code) in languageOptions"
+                      :key="code"
+                      :value="code"
+                    >
+                      {{ getLanguageDisplayName(code) }}
+                    </option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label" for="default-target">
+                    {{ t("settings.language.defaultTarget") }}
+                  </label>
+                  <select
+                    id="default-target"
+                    v-model="settings.targetLang"
+                    class="select"
+                    @change="saveSettings"
+                  >
+                    <option
+                      v-for="(name, code) in languageOptions"
+                      :key="code"
+                      :value="code"
+                    >
+                      {{ getLanguageDisplayName(code) }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <!-- 划词翻译 -->
+            <section class="card-section">
+              <h2 class="section-title">
+                {{ t("settings.selection.title") }}
+              </h2>
+              <div class="mt-4 space-y-4">
+                <label class="flex items-center gap-2 text-sm" for="enableSelection">
+                  <input
+                    id="enableSelection"
+                    v-model="settings.enableSelection"
+                    @change="saveSettings"
+                    type="checkbox"
+                    class="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span class="text-slate-700">
+                    {{ t("settings.selection.enable") }}
+                  </span>
+                </label>
+
+                <div v-if="settings.enableSelection" class="space-y-4">
+                  <fieldset>
+                    <legend class="field-label">
+                      {{ t("settings.selection.triggerMethod") }}
+                    </legend>
+                    <div class="flex flex-wrap gap-2">
+                      <label
+                        v-for="option in triggerOptions"
+                        :key="option.value"
+                        :class="[
+                          'flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
+                          settings.selectionTrigger === option.value
+                            ? 'border-primary-500 bg-primary-50 text-primary-700'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300',
+                        ]"
+                      >
+                        <input
+                          v-model="settings.selectionTrigger"
+                          @change="saveSettings"
+                          type="radio"
+                          :value="option.value"
+                          class="h-4 w-4 border-slate-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        {{ option.label }}
+                      </label>
+                    </div>
+                  </fieldset>
+
+                  <div>
+                    <label class="field-label" for="min-selection-length">
+                      {{ t("settings.selection.minChars") }}
+                    </label>
+                    <input
+                      id="min-selection-length"
+                      type="number"
+                      min="1"
+                      max="500"
+                      v-model.number="settings.minSelectionLength"
+                      @change="saveSettings"
+                      class="input w-32"
+                    />
+                    <p class="field-hint">
+                      {{ t("settings.selection.minCharsHint") }}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label class="field-label" for="domain-blacklist">
+                      {{ t("settings.selection.blacklist") }}
+                    </label>
+                    <textarea
+                      id="domain-blacklist"
+                      v-model="blacklistText"
+                      @change="saveBlacklist"
+                      rows="4"
+                      class="input font-mono"
+                      :placeholder="t('settings.selection.blacklistPlaceholder')"
+                    ></textarea>
+                    <p class="field-hint">
+                      {{ t("settings.selection.blacklistHint") }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- 语音朗读预览 -->
+            <section class="card-section">
+              <h2 class="section-title">
+                {{ t("settings.voice.title") }}
+              </h2>
+              <p class="section-desc mt-1">
+                {{ t("settings.voice.desc") }}
+              </p>
+              <div class="mt-4 grid gap-4 md:grid-cols-2">
+                <div
+                  v-for="lang in ['zh', 'en']"
+                  :key="lang"
+                  class="rounded-lg border border-slate-200 bg-slate-50/60 p-4"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-medium">
+                      {{ lang === "zh" ? t("settings.voice.zh") : t("settings.voice.en") }}
+                    </span>
+                    <button
+                      type="button"
+                      @click="previewSpeak(lang)"
+                      :disabled="speakingPreview === lang"
+                      class="btn-primary px-3 py-1.5"
+                    >
+                      {{
+                        speakingPreview === lang
+                          ? t("settings.voice.playing")
+                          : lang === "zh"
+                            ? t("settings.voice.previewZh")
+                            : t("settings.voice.previewEn")
+                      }}
+                    </button>
+                  </div>
+                  <p class="mt-2 text-sm leading-relaxed text-slate-700">
+                    {{ voiceSamples[lang] }}
+                  </p>
+                  <p class="mt-2 text-xs text-slate-500">
+                    {{ t("settings.voice.engine") }}:
+                    {{ voiceEngines[lang].voiceName }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-slate-400">
+                    {{ voiceEngines[lang].detail }}
+                  </p>
+                </div>
+              </div>
+            </section>
           </div>
-          <div v-else class="space-y-3 max-h-[28rem] overflow-y-auto">
-            <div
-              v-for="(item, idx) in history"
-              :key="idx"
-              class="border border-gray-200 rounded-lg p-3 text-sm"
-            >
-              <div class="text-xs text-gray-400 mb-1">
-                {{ formatTime(item.timestamp) }}
-                <span v-if="item.from || item.detectedLanguage">
-                  ·
-                  {{ item.detectedLanguage || item.from || "?" }} →
-                  {{ item.to || "?" }}
-                </span>
-              </div>
-              <div class="text-gray-600 whitespace-pre-wrap break-words mb-2">
-                {{ item.originalText }}
-              </div>
-              <div
-                class="text-gray-900 whitespace-pre-wrap break-words border-t border-gray-100 pt-2"
-              >
-                {{ item.translatedText }}
-              </div>
+
+          <!-- 翻译历史 -->
+          <div v-else-if="activeTab === 'history'" class="card-section">
+            <div class="flex items-center justify-between">
+              <h2 class="section-title">
+                {{ t("settings.tab.history") }}
+              </h2>
+              <button @click="clearHistory" class="btn-danger-ghost px-3 py-1.5">
+                {{ t("settings.history.clear") }}
+              </button>
             </div>
-          </div>
-        </div>
-
-        <div v-else-if="activeTab === 'about'" class="text-center space-y-6">
-          <div>
-            <img
-              :src="logoUrl"
-              alt="GLM Translator"
-              class="h-16 w-auto mx-auto mb-4"
-            />
-            <h3 class="text-2xl font-bold text-gray-800">
-              {{ t("about.title") }}
-            </h3>
-            <p class="text-gray-600 mt-2">{{ t("about.subtitle") }}</p>
-            <p class="text-sm text-gray-500 mt-1">
-              {{ t("settings.version") }} {{ version }}
+            <p v-if="history.length === 0" class="mt-6 text-sm text-slate-500">
+              {{ t("settings.history.empty") }}
             </p>
-          </div>
-
-          <div class="bg-gray-50 rounded-lg p-6 text-left text-sm text-gray-600">
-            <h4 class="font-semibold text-gray-800 mb-2">隐私与数据</h4>
-            <ul class="list-disc list-inside space-y-1">
-              <li>API 密钥仅保存在本机扩展本地存储，不会写入浏览器同步存储。</li>
-              <li>
-                翻译请求仅发送至您选择的服务商域名（或自定义 API 地址）。
-              </li>
-              <li>翻译历史保存在本机，可随时清空。</li>
-              <li>
-                微软免费翻译基于公开 Edge 翻译接口，非官方订阅，可能随时失效。
+            <ul v-else class="mt-4 max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+              <li
+                v-for="(item, idx) in history"
+                :key="idx"
+                class="rounded-lg border border-slate-200 p-3 text-sm"
+              >
+                <div class="mb-1 flex items-center gap-2 text-xs text-slate-400">
+                  <span>{{ formatTime(item.timestamp) }}</span>
+                  <span v-if="item.from || item.detectedLanguage" class="badge-neutral">
+                    {{ item.detectedLanguage || item.from || "?" }} →
+                    {{ item.to || "?" }}
+                  </span>
+                </div>
+                <div class="whitespace-pre-wrap break-words text-slate-500">
+                  {{ item.originalText }}
+                </div>
+                <div
+                  class="mt-2 whitespace-pre-wrap break-words border-t border-slate-100 pt-2 text-slate-800"
+                >
+                  {{ item.translatedText }}
+                </div>
               </li>
             </ul>
           </div>
 
-          <div class="grid grid-cols-2 gap-4 text-sm text-gray-600">
-            <p
-              class="flex items-center justify-center bg-gray-50 rounded-lg py-3 px-4"
-            >
-              {{ t("about.aiServices") }}
-            </p>
-            <p
-              class="flex items-center justify-center bg-gray-50 rounded-lg py-3 px-4"
-            >
-              {{ t("about.shortcuts") }}
-            </p>
+          <!-- 关于 -->
+          <div v-else-if="activeTab === 'about'" class="card-section space-y-5">
+            <div class="text-center">
+              <img
+                :src="logoUrl"
+                alt="GLM Translator"
+                class="mx-auto mb-3 h-14 w-auto"
+              />
+              <h2 class="text-xl font-bold text-slate-800">
+                {{ t("about.title") }}
+              </h2>
+              <p class="mt-1 text-sm text-slate-500">{{ t("about.subtitle") }}</p>
+              <p class="mt-0.5 text-xs text-slate-400">
+                {{ t("settings.version") }} {{ version }}
+              </p>
+            </div>
+
+            <div class="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
+              <h3 class="mb-2 font-semibold text-slate-800">
+                {{ t("about.privacy.title") }}
+              </h3>
+              <ul class="list-inside list-disc space-y-1">
+                <li>{{ t("about.privacy.keys") }}</li>
+                <li>{{ t("about.privacy.requests") }}</li>
+                <li>{{ t("about.privacy.history") }}</li>
+                <li>{{ t("about.privacy.microsoft") }}</li>
+              </ul>
+            </div>
+
+            <div class="grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+              <p class="rounded-lg bg-slate-50 px-4 py-3 text-center">
+                {{ t("about.aiServices") }}
+              </p>
+              <p class="rounded-lg bg-slate-50 px-4 py-3 text-center">
+                {{ t("about.shortcuts") }}
+              </p>
+            </div>
           </div>
         </div>
       </div>
     </main>
 
-    <!-- Save toast -->
-    <div
-      v-if="saveToast"
-      class="fixed bottom-6 right-6 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50"
+    <!-- 保存提示 -->
+    <transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="translate-y-2 opacity-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-to-class="translate-y-2 opacity-0"
     >
-      {{ saveToast }}
-    </div>
+      <div
+        v-if="saveToast"
+        class="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-lg bg-slate-800 px-4 py-2 text-sm text-white shadow-lg"
+        role="status"
+      >
+        {{ saveToast }}
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -386,6 +375,17 @@ import {
   clearTranslationHistory,
 } from "../utils/storage.js";
 import { speakText, describeSpeakEngine, loadVoices } from "../utils/speak.js";
+
+const NAV_ICONS = {
+  provider:
+    "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
+  general:
+    "M12 15a3 3 0 100-6 3 3 0 000 6zm6-3a8.96 8.96 0 01-.22 2l2.05 1.58a.5.5 0 01.12.64l-1.94 3.36a.5.5 0 01-.6.22l-2.42-.97a8.9 8.9 0 01-1.73 1L13 22.4a.5.5 0 01-.5.42h-3.88a.5.5 0 01-.5-.42l-.36-2.57a8.9 8.9 0 01-1.73-1l-2.42.97a.5.5 0 01-.6-.22l-1.94-3.36a.5.5 0 01.12-.64L4.22 14a8.96 8.96 0 010-4L2.17 8.42a.5.5 0 01-.12-.64l1.94-3.36a.5.5 0 01.6-.22l2.42.97a8.9 8.9 0 011.73-1L9.1 1.6a.5.5 0 01.5-.42h3.88a.5.5 0 01.5.42l.36 2.57c.62.25 1.2.58 1.73 1l2.42-.97a.5.5 0 01.6.22l1.94 3.36a.5.5 0 01-.12.64L20.9 10c.06.65.1 1.32.1 2z",
+  history:
+    "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+  about:
+    "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+};
 
 export default {
   name: "Options",
@@ -412,18 +412,24 @@ export default {
         en: "Hello, this is a voice preview from GLM Translator. I hope it sounds clear and natural.",
       },
       voiceEngines: {
-        zh: { mode: "online", voiceName: "检测中…", detail: "" },
-        en: { mode: "local", voiceName: "检测中…", detail: "" },
+        zh: { mode: "online", voiceName: "…", detail: "" },
+        en: { mode: "local", voiceName: "…", detail: "" },
       },
     };
   },
   computed: {
     tabs() {
       return [
-        { id: "provider", label: this.t("settings.providerConfig") },
-        { id: "general", label: this.t("settings.generalSettings") },
-        { id: "history", label: "翻译历史" },
-        { id: "about", label: this.t("settings.about") },
+        { id: "provider", label: this.t("settings.providerConfig"), icon: NAV_ICONS.provider },
+        { id: "general", label: this.t("settings.generalSettings"), icon: NAV_ICONS.general },
+        { id: "history", label: this.t("settings.tab.history"), icon: NAV_ICONS.history },
+        { id: "about", label: this.t("settings.about"), icon: NAV_ICONS.about },
+      ];
+    },
+    triggerOptions() {
+      return [
+        { value: "icon", label: this.t("settings.selection.showIcon") },
+        { value: "instant", label: this.t("settings.selection.instantTranslate") },
       ];
     },
     languageOptions() {
@@ -484,8 +490,8 @@ export default {
       }, ms);
     },
 
-    showSaveToast(msg = "设置已保存") {
-      this.saveToast = msg;
+    showSaveToast(msg) {
+      this.saveToast = msg || this.t("settings.saved");
       if (this.saveToastTimer) clearTimeout(this.saveToastTimer);
       this.saveToastTimer = setTimeout(() => {
         this.saveToast = "";
@@ -539,7 +545,7 @@ export default {
         this.showSaveToast();
       } catch (error) {
         console.error("保存设置失败:", error);
-        this.showSaveToast("保存失败");
+        this.showSaveToast(this.t("settings.saveFailed"));
       }
     },
 
@@ -558,10 +564,10 @@ export default {
     },
 
     async clearHistory() {
-      if (!confirm("确定清空全部翻译历史？")) return;
+      if (!confirm(this.t("settings.history.clearConfirm"))) return;
       await clearTranslationHistory();
       this.history = [];
-      this.showSaveToast("历史已清空");
+      this.showSaveToast(this.t("settings.history.cleared"));
     },
 
     formatTime(ts) {

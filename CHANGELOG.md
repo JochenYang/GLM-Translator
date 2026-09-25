@@ -5,6 +5,48 @@ All notable changes to GLM Translator are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-25
+
+### Added
+
+- **Microsoft free translation restored on the new Edge endpoint**: Microsoft
+  replaced the retired JWT auth flow with a keyless
+  `edge.microsoft.com/translate/translatetext` endpoint (verified live:
+  Japanese, long sentences and mixed-language batches all translate).
+  `microsoftTranslate.js` is rebuilt around it — no token machinery, with
+  429/5xx backoff (Retry-After aware), in-memory LRU cache, abort support and
+  a 20k-char limit with 10k chunking for long text.
+- **Engine switcher in the popup**: a dropdown under the language selects
+  switches engines in place. Keyless engines (Microsoft/Youdao) switch
+  instantly; AI engines appear once configured in Settings, with inline
+  warning + revert when unconfigured. Switching re-translates pending input.
+- **Project conventions**: `AGENTS.md` documents architecture, the engine
+  checklist, i18n rules, design tokens and release steps.
+- `tests/unit/providerModels.test.mjs` guards model-list sync between
+  `providers.js` and i18n (missing keys and orphans both fail the run).
+
+### Changed
+
+- **Settings page redesign** (design-system pass): semantic Tailwind colors
+  (`primary/success/danger/warning`) + `--gt-*` CSS tokens + shared component
+  classes; Options gets a sidebar navigation with icon tabs; provider cards
+  show in-use/configured states; all strings i18n'd (zh/en). Deprecated
+  `SettingsPanel.vue`, `AnimatedCard.vue`, `ParticleBackground.vue` removed.
+- **Model lists refreshed for translation** (verified against official docs):
+  GLM defaults to `glm-4.7-flash` (4.5-flash retires 2026-01-30) and adds
+  `glm-5.3`; Volcengine adds the dedicated
+  `doubao-seed-translation-250915`; Hunyuan/Qwen-MT/DeepSeek descriptions
+  updated to current facts.
+- **Toasts unified top-center** (save/success notifications).
+- Microsoft four-square logo icon regenerated (`public/icons/microsoft.png`).
+
+### Fixed
+
+- **Model dropdown showed raw i18n keys** for models without translations
+  (e.g. `provider.model.hunyuan-turbos-latest`): `t()` returns the key when
+  missing, so `|| fallback` never fired. Model labels now fall back to the
+  canonical name/description after an explicit key-existence check.
+
 ## [1.4.0] - 2026-09-05
 
 ### Changed

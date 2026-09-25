@@ -11,12 +11,12 @@ export const PROVIDER_PRESETS = {
     icon: '🤖',
     url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
     models: [
-      { id: 'glm-4.5-flash', name: 'GLM-4.5-Flash (推荐)', description: '4.5版本快速模型' },
-      { id: 'glm-4.5-air', name: 'GLM-4.5-Air', description: '4.5版本轻量模型' },
-      { id: 'glm-4.5', name: 'GLM-4.5', description: '4.5版本标准模型' },
-      { id: 'glm-4.6', name: 'GLM-4.6', description: '最新版本模型' }
+      { id: 'glm-4.7-flash', name: 'GLM-4.7-Flash (推荐)', description: '免费模型，翻译首选' },
+      { id: 'glm-5.3', name: 'GLM-5.3', description: '最新旗舰模型' },
+      { id: 'glm-4.6', name: 'GLM-4.6', description: '高级推理与工具调用' },
+      { id: 'glm-4.5-air', name: 'GLM-4.5-Air', description: '轻量模型' }
     ],
-    defaultModel: 'glm-4.5-flash',
+    defaultModel: 'glm-4.7-flash',
     apiKeyUrl: 'https://open.bigmodel.cn/',
     apiKeyHelp: 'provider.apiKeyHelp.glm',
     pricing: '免费额度 + 按量计费',
@@ -36,11 +36,12 @@ export const PROVIDER_PRESETS = {
     icon: '🌋',
     url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
     models: [
-      { id: 'doubao-1-5-pro-32k-250115', name: '豆包-1.5-Pro-32K (推荐)', description: '2025年最新32K模型' },
-      { id: 'doubao-1-5-pro-256k-250115', name: '豆包-1.5-Pro-256K', description: '2025年最新256K长文本' },
-      { id: 'doubao-1-5-lite-32k-250115', name: '豆包-1.5-Lite-32K', description: '2025年轻量32K模型' }
+      { id: 'doubao-seed-1-6-flash-250615', name: '豆包 Seed 1.6 Flash (推荐)', description: '最新通用快速模型' },
+      { id: 'doubao-seed-translation-250915', name: '豆包翻译模型', description: '专用翻译模型，28语种互译' },
+      { id: 'doubao-seed-1-6-250615', name: '豆包 Seed 1.6', description: '最新标准模型' },
+      { id: 'doubao-1-5-pro-32k-250115', name: '豆包-1.5-Pro-32K', description: '上一代 Pro，兼容旧接入点' }
     ],
-    defaultModel: 'doubao-1-5-pro-32k-250115',
+    defaultModel: 'doubao-seed-1-6-flash-250615',
     apiKeyUrl: 'https://console.volcengine.com/ark',
     apiKeyHelp: 'provider.apiKeyHelp.volcengine',
     pricing: '按量计费',
@@ -61,9 +62,9 @@ export const PROVIDER_PRESETS = {
     url: 'https://api.siliconflow.cn/v1/chat/completions',
     models: [
       { id: 'Qwen/Qwen3-8B', name: 'Qwen3-8B (推荐)', description: '通义千问最新模型' },
-      { id: 'THUDM/GLM-Z1-9B-0414', name: 'GLM-Z1-9B-0414', description: '智谱最新9B参数模型' },
+      { id: 'Qwen/Qwen3-32B', name: 'Qwen3-32B', description: '通义千问大尺寸模型' },
       { id: 'tencent/Hunyuan-MT-7B', name: 'Hunyuan-MT-7B', description: '腾讯混元翻译模型' },
-      { id: 'internlm/internlm2_5-7b-chat', name: 'internlm2_5-7B-Chat', description: '上海AI实验室模型' }
+      { id: 'deepseek-ai/DeepSeek-V3', name: 'DeepSeek-V3', description: 'DeepSeek 通用模型' }
     ],
     defaultModel: 'Qwen/Qwen3-8B',
     apiKeyUrl: 'https://siliconflow.cn/',
@@ -85,8 +86,9 @@ export const PROVIDER_PRESETS = {
     icon: '🐧',
     url: 'https://hunyuan.tencentcloudapi.com/v1/chat/completions',
     models: [
-      { id: 'Hunyuan-MT-7B', name: 'Hunyuan-MT-7B (推荐)', description: '2025年最新翻译模型' },
-      { id: 'Hunyuan-MT-Chimera-7B', name: 'Hunyuan-MT-Chimera-7B', description: '2025年最新混血版' }
+      { id: 'Hunyuan-MT-7B', name: 'Hunyuan-MT-7B (推荐)', description: '混元翻译模型，33语种互译' },
+      { id: 'Hunyuan-MT-Chimera-7B', name: 'Hunyuan-MT-Chimera-7B', description: '混元翻译集成增强版' },
+      { id: 'hunyuan-turbos-latest', name: 'Hunyuan-TurboS', description: '混元旗舰通用模型' }
     ],
     defaultModel: 'Hunyuan-MT-7B',
     apiKeyUrl: 'https://console.cloud.tencent.com/hunyuan',
@@ -108,9 +110,9 @@ export const PROVIDER_PRESETS = {
     icon: '☁️',
     url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
     models: [
-      { id: 'qwen-mt-flash', name: 'Qwen-MT-Flash (推荐)', description: '2025年翻译快速模型' },
-      { id: 'qwen-mt-turbo', name: 'Qwen-MT-Turbo', description: '2025年翻译高速模型' },
-      { id: 'qwen-mt-plus', name: 'Qwen-MT-Plus', description: '2025年翻译高质量模型' },
+      { id: 'qwen-mt-flash', name: 'Qwen-MT-Flash (推荐)', description: 'Qwen3 翻译模型，92语种互译' },
+      { id: 'qwen-mt-turbo', name: 'Qwen-MT-Turbo', description: '翻译高速版' },
+      { id: 'qwen-mt-plus', name: 'Qwen-MT-Plus', description: '翻译高质量版' },
       { id: 'qwen3-max', name: 'Qwen3-Max', description: 'Qwen3最高质量' },
       { id: 'qwen-plus-latest', name: 'Qwen-Plus-Latest', description: 'Qwen最新Plus版本' },
       { id: 'qwen-flash', name: 'Qwen-Flash', description: 'Qwen快速模型' }
@@ -135,9 +137,8 @@ export const PROVIDER_PRESETS = {
     icon: '🔍',
     url: 'https://api.deepseek.com/v1/chat/completions',
     models: [
-      { id: 'deepseek-chat', name: 'DeepSeek-Chat (推荐)', description: '对话模型' },
-      { id: 'deepseek-coder', name: 'DeepSeek-Coder', description: '代码专用' },
-      { id: 'deepseek-reasoner', name: 'DeepSeek-Reasoner', description: '推理增强模型' }
+      { id: 'deepseek-chat', name: 'DeepSeek-Chat (推荐)', description: '官方对话模型，自动指向最新版本' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek-Reasoner', description: '官方推理模型，自动指向最新版本' }
     ],
     defaultModel: 'deepseek-reasoner',
     apiKeyUrl: 'https://platform.deepseek.com/',
@@ -172,6 +173,29 @@ export const PROVIDER_PRESETS = {
       '无需任何 API Key 或配置',
       '基于有道词典引擎，自动识别语言',
       '如需更高质量，可申请有道智云 Key'
+    ]
+  },
+
+  microsoft: {
+    id: 'microsoft',
+    name: '微软免费翻译',
+    description: 'provider.desc.microsoft',
+    icon: '🌐',
+    url: '',
+    models: [
+      { id: 'microsoft-free', name: '微软免费翻译 (无需配置)', description: '基于微软 Edge 翻译引擎，开箱即用' }
+    ],
+    defaultModel: 'microsoft-free',
+    apiKeyUrl: '',
+    apiKeyHelp: 'provider.apiKeyHelp.microsoft',
+    pricing: 'provider.pricing.microsoft',
+    features: ['provider.feature.microsoftFree', 'provider.feature.multiLang'],
+    noApiKeyRequired: true,
+    setupGuide: [
+      '选择"微软免费翻译"即可使用',
+      '无需任何 API Key 或配置',
+      '基于微软 Edge 翻译引擎，自动识别语言',
+      '支持日文、长句与多语言混合翻译'
     ]
   },
 
@@ -212,7 +236,8 @@ export function getAllProviders() {
 // 获取推荐提供商（中国大陆用户友好）
 export function getRecommendedProviders() {
   return [
-    PROVIDER_PRESETS.youdao, // 免费方案排第一
+    PROVIDER_PRESETS.microsoft, // 免费方案排第一
+    PROVIDER_PRESETS.youdao,
     PROVIDER_PRESETS.glm,
     PROVIDER_PRESETS.volcengine,
     PROVIDER_PRESETS.siliconflow,

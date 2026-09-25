@@ -3,6 +3,7 @@
  */
 import { getStorage, setStorage } from "../utils/storage.js";
 import { translate as youdaoTranslate } from "./youdaoTranslate.js";
+import { translate as microsoftTranslate } from "./microsoftTranslate.js";
 import { chunkText } from "../utils/textChunker.js";
 import { resolveSourceLanguage } from "../utils/detectLanguage.js";
 import { getSelectedApiConfig, loadApiConfigs } from "../utils/secureStorage.js";
@@ -133,7 +134,7 @@ const PROVIDER_ENDPOINTS = {
 };
 
 const DEFAULT_MODELS = {
-  glm: "glm-4.5-flash",
+  glm: "glm-4.7-flash",
   volcengine: "doubao-1-5-pro-32k-250115",
   siliconflow: "Qwen/Qwen3-8B",
   hunyuan: "Hunyuan-MT-7B",
@@ -308,13 +309,20 @@ export async function translateText(text, from = "auto", to = "zh", options = {}
     let detected = null;
     let localConfidence;
 
-    // 有道：原文直传、不 preprocess；支持 AbortSignal（免 Key 词典通道 / 智云 Key 通道见 youdaoTranslate）
+    // 有道 / 微软：原文直传、不 preprocess；支持 AbortSignal（免 Key 通道）
     if (provider === "youdao") {
       result = await youdaoTranslate(text, from, to, {
         signal: options.signal,
         appKey: config?.appKey || config?.key || "",
         appSecret: config?.appSecret || config?.secret || "",
         translateOption: config?.translateOption || 0,
+      });
+      if (result?.detectedLanguage) {
+        detected = result.detectedLanguage;
+      }
+    } else if (provider === "microsoft") {
+      result = await microsoftTranslate(text, from, to, {
+        signal: options.signal,
       });
       if (result?.detectedLanguage) {
         detected = result.detectedLanguage;
@@ -424,7 +432,7 @@ export async function translateTextChunked(
     return await translateText(text, from, to, options);
   }
 
-  // ── 以下仅 AI 提供商：支持取消抢占与分块 ──
+  // ── 以下仅 AI / 微软提供商：支持取消抢占与分块 ──
   cancelActiveTranslation();
   const controller = new AbortController();
   activeAbortController = controller;
@@ -442,8 +450,9 @@ export async function translateTextChunked(
 
   const signal = controller.signal;
 
-  // ── 以下仅 AI 提供商：支持分块 ──
-  const chunks = chunkText(text, 2000);
+  // 微软接口单请求容量大，用更大的分块减少请求数
+  const chunkSize = provider === "microsoft" ? 10000 : 2000;
+  const chunks = chunkText(text, chunkSize);
   if (chunks.length === 0) {
     throw new Error("翻译文本不能为空");
   }
@@ -586,6 +595,22 @@ export async function testProviderConnection({
       return {
         success: true,
         message: `连接成功！"Hello" → "${result.translatedText}"`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || "连接失败",
+      };
+    }
+  }
+
+  if (provider === "microsoft") {
+    // 免 Key 微软 Edge 通道直连测试
+    try {
+      const result = await microsoftTranslate("Hello, world!", "en", "zh");
+      return {
+        success: true,
+        message: `连接成功！"Hello, world!" → "${result.translatedText}"`,
       };
     } catch (error) {
       return {

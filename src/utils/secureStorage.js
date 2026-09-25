@@ -330,8 +330,9 @@ export async function getSelectedApiConfig() {
     const found = savedApis.find((a) => a.id === selectedApiId);
     if (found) return { provider: found.provider || "custom", config: found };
   }
-  if (selectedProvider === "youdao") {
-    return { provider: "youdao", config: { provider: "youdao" } };
+  // 免 Key 提供商无需任何配置即可使用
+  if (selectedProvider === "youdao" || selectedProvider === "microsoft") {
+    return { provider: selectedProvider, config: { provider: selectedProvider } };
   }
   if (selectedProvider && savedApis.length) {
     const byProvider = savedApis.find((a) => a.provider === selectedProvider);
@@ -353,7 +354,7 @@ export async function getSelectedApiConfig() {
  */
 export function resolveConfigUrl(api) {
   if (!api) return null;
-  if (api.provider === "youdao") return null;
+  if (api.provider === "youdao" || api.provider === "microsoft") return null;
   const cfg = api.config;
   if (!cfg) return null;
   return cfg.url || cfg.apiUrl || null;
