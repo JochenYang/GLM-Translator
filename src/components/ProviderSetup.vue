@@ -554,6 +554,8 @@ export default {
         deepseek: chrome.runtime.getURL("icons/deepseek.png"),
         youdao: chrome.runtime.getURL("icons/youdao.png"),
         microsoft: chrome.runtime.getURL("icons/microsoft.png"),
+        google: chrome.runtime.getURL("icons/google.png"),
+        transmart: chrome.runtime.getURL("icons/transmart.png"),
         custom: chrome.runtime.getURL("icons/custom.png"),
       };
       return logoMap[providerId] || null;

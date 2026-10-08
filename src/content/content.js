@@ -7,7 +7,7 @@ import { resolveSourceLanguage } from "../utils/detectLanguage.js";
 import { isDomainBlacklisted } from "../utils/domainBlacklist.js";
 import { normalizeGeneralSettings } from "../utils/generalSettings.js";
 import { allLanguages } from "../common/languages.js";
-import { speakText } from "../utils/speak.js";
+import { speakText, stopSpeaking } from "../utils/speak.js";
 
 let translationIcon = null;
 let lastSelectedText = "";
@@ -104,7 +104,17 @@ function init() {
   }
 }
 
+function isExtensionContextValid() {
+  try {
+    return !!(typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id);
+  } catch (_) {
+    return false;
+  }
+}
+
 async function handleSelection(event) {
+  if (!isExtensionContextValid()) return;
+
   if (event?.target) {
     const container = document.querySelector("#glm-translator-container");
     if (container && container.contains(event.target)) return;
@@ -166,6 +176,9 @@ async function handleSelection(event) {
       showIcon(iconX, iconY);
     }
   } catch (error) {
+    if (String(error?.message || "").includes("Extension context invalidated")) {
+      return;
+    }
     console.error("处理选中文本错误:", error);
   }
 }
@@ -289,6 +302,7 @@ function runPopupCleanup() {
 
 function hidePopup() {
   runPopupCleanup();
+  stopSpeaking();
   document.querySelector("#glm-translator-container")?.remove();
   try {
     chrome.runtime.sendMessage({ action: "cancelTranslate" }).catch(() => {});

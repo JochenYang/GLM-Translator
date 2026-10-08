@@ -1,15 +1,15 @@
 /**
- * 微软免费翻译（免 Key，逆向自 Edge 内置翻译 2026-08 后的新接口）。
+ * 微软免费翻译（免 Key，逆向自 Edge 内置翻译 2026-08 后的新接口，并支持 Bing Web 备用容灾）。
  *
- * 通道：
+ * 通道 1（主通道）：
  *   POST https://edge.microsoft.com/translate/translatetext
  *        ?from=<源语言，省略即自动检测>&to=<目标语言>&isEnterpriseClient=false
  *   body = JSON 字符串数组 ["text1", "text2"]，
  *   响应 = [{ detectedLanguage: { language }, translations: [{ text, to }] }]
  *
- * 无需任何 token / API Key / 浏览器伪装头。旧接口
- * edge.microsoft.com/translate/auth（JWT）已于 2026-07-30 停用。
- * 实测该端点支持日文与单请求多段文本（每段独立语言检测）。
+ * 通道 2（备用容灾通道）：
+ *   逆向自 cn.bing.com/translator 短期 token + POST https://cn.bing.com/ttranslatev3
+ *   当 Edge 接口网络受限或服务异常时自动降级无缝切换，确保高可用。
  */
 
 const TRANSLATE_URL = "https://edge.microsoft.com/translate/translatetext";
@@ -178,12 +178,142 @@ export function parseTranslateResponse(data) {
   return { translatedText: translation.text, detectedLanguage: detected };
 }
 
+// ─── 备用 Bing Web 通道（逆向自 cn.bing.com/translator）──────
+const BING_PAGE_URL = "https://cn.bing.com/translator";
+const BING_TRANSLATE_URL = "https://cn.bing.com/ttranslatev3";
+let bingCached = null;
+let bingPending = null;
+
+export function resetBingTokenCache() {
+  bingCached = null;
+  bingPending = null;
+}
+
+export function parseBingAuth(html, now = Date.now()) {
+  const abuse = String(html).match(
+    /params_AbusePreventionHelper\s*=\s*\[\s*(\d+)\s*,\s*"([^"]+)"\s*,\s*(\d+)\s*\]/
+  );
+  const ig = String(html).match(/IG\s*:\s*"([A-Fa-f0-9]+)"/);
+  const iid = String(html).match(/data-iid\s*=\s*"([^"]+)"/);
+  if (!abuse || !ig || !iid) throw new Error("微软 Bing 认证凭据解析失败");
+  const ttl = Number(abuse[3]);
+  return {
+    ig: ig[1],
+    iid: iid[1],
+    key: abuse[1],
+    token: abuse[2],
+    exp: now + Math.max(ttl - 60_000, 0),
+  };
+}
+
+export async function getBingSession(fetchImpl, signal, timeoutMs, force = false) {
+  const now = Date.now();
+  if (!force && bingCached && bingCached.exp > now + 15_000) return bingCached;
+  if (!force && bingPending) return bingPending;
+
+  const fetchSession = async () => {
+    const { signal: reqSignal, cleanup } = withTimeout(signal, timeoutMs);
+    try {
+      const res = await fetchImpl(BING_PAGE_URL, {
+        method: "GET",
+        signal: reqSignal,
+        redirect: "follow",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        },
+      });
+      if (!res.ok) throw new Error(`微软 Bing 页面访问失败（HTTP ${res.status}）`);
+      const html = await res.text();
+      const auth = parseBingAuth(html, now);
+      bingCached = { auth, exp: auth.exp };
+      return bingCached;
+    } finally {
+      cleanup();
+    }
+  };
+
+  const p = fetchSession();
+  bingPending = p;
+  try {
+    return await p;
+  } finally {
+    if (bingPending === p) bingPending = null;
+  }
+}
+
+export async function translateViaBing(text, from = "auto", to = "zh", options = {}) {
+  const {
+    signal,
+    fetchImpl = globalThis.fetch,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+  } = options;
+  const msFrom = toMicrosoftLang(from);
+  const msTo = toMicrosoftLang(to) || "zh-Hans";
+
+  const once = async (force) => {
+    const session = await getBingSession(fetchImpl, signal, timeoutMs, force);
+    const url = new URL(BING_TRANSLATE_URL);
+    url.searchParams.set("isVertical", "1");
+    url.searchParams.set("IG", session.auth.ig);
+    url.searchParams.set("IID", session.auth.iid);
+
+    const body = new URLSearchParams({
+      fromLang: msFrom || "auto-detect",
+      text,
+      to: msTo,
+      token: session.auth.token,
+      key: session.auth.key,
+    });
+
+    const { signal: reqSignal, cleanup } = withTimeout(signal, timeoutMs);
+    try {
+      const res = await fetchImpl(url.toString(), {
+        method: "POST",
+        signal: reqSignal,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Referer: BING_PAGE_URL,
+        },
+        body: body.toString(),
+      });
+      if (!res.ok) throw new Error(`微软 Bing 请求失败（HTTP ${res.status}）`);
+      const json = await res.json();
+      if (json && typeof json.statusCode === "number" && json.statusCode !== 200) {
+        const err = new Error(`Bing 状态码异常: ${json.statusCode}`);
+        err.bingStatus = json.statusCode;
+        throw err;
+      }
+      const transText = json?.[0]?.translations?.[0]?.text;
+      if (typeof transText !== "string") throw new Error("Bing 翻译响应格式异常");
+      const detected = fromMicrosoftLang(json?.[0]?.detectedLanguage?.language);
+      return {
+        translatedText: transText,
+        from,
+        to,
+        detectedLanguage: detected,
+        via: "microsoft-bing",
+      };
+    } finally {
+      cleanup();
+    }
+  };
+
+  try {
+    return await once(false);
+  } catch (err) {
+    if (err?.bingStatus === 205) return once(true);
+    throw err;
+  }
+}
+
 /**
  * 微软免费翻译（与 translator.js 约定的 provider translate 同签名）。
+ * 默认走 Edge 极速端点；在端点失效（404/503/网络故障）时自动降级到 Bing Web 备用端点。
  * @param {string} text
  * @param {string} [from="auto"]
  * @param {string} [to="zh"]
- * @param {{ signal?: AbortSignal, fetchImpl?: Function, rateLimitRetries?: number }} [options]
+ * @param {{ signal?: AbortSignal, fetchImpl?: Function, rateLimitRetries?: number, enableBingFallback?: boolean }} [options]
  * @returns {Promise<{ translatedText: string, from: string, to: string, detectedLanguage?: string, via: string }>}
  */
 export async function translate(text, from = "auto", to = "zh", options = {}) {
@@ -191,6 +321,7 @@ export async function translate(text, from = "auto", to = "zh", options = {}) {
     signal,
     fetchImpl = globalThis.fetch,
     rateLimitRetries = 2,
+    enableBingFallback = true,
   } = options;
   throwIfAborted(signal);
   if (!fetchImpl) throw new Error("当前环境不支持网络请求");
@@ -208,6 +339,8 @@ export async function translate(text, from = "auto", to = "zh", options = {}) {
   url.searchParams.set("isEnterpriseClient", "false");
 
   let lastError;
+  let canFallbackToBing = false;
+
   for (let attempt = 0; attempt <= rateLimitRetries; attempt++) {
     throwIfAborted(signal);
     const { signal: reqSignal, cleanup } = withTimeout(signal, REQUEST_TIMEOUT_MS);
@@ -227,7 +360,9 @@ export async function translate(text, from = "auto", to = "zh", options = {}) {
         if (!signal?.aborted) throw new Error("微软翻译请求超时");
         throw makeAbortError();
       }
-      throw err;
+      canFallbackToBing = true;
+      lastError = err;
+      break;
     }
 
     if (response.ok) {
@@ -255,6 +390,9 @@ export async function translate(text, from = "auto", to = "zh", options = {}) {
 
     // 可重试状态：429 / 403 / 5xx
     const status = response.status;
+    if (status === 404 || status === 502 || status === 503) {
+      canFallbackToBing = true;
+    }
     const retryable = status === 429 || status === 403 || status >= 500;
     if (!retryable || attempt === rateLimitRetries) {
       let body = "";
@@ -262,9 +400,10 @@ export async function translate(text, from = "auto", to = "zh", options = {}) {
         body = (await response.text()).slice(0, 200);
       } catch { /* ignore */ }
       cleanup();
-      throw new Error(
+      lastError = new Error(
         `微软翻译请求失败（HTTP ${status}）${body ? `: ${body}` : ""}`
       );
+      break;
     }
     const waitMs = parseRetryAfterMs(response, attempt);
     cleanup();
@@ -272,6 +411,17 @@ export async function translate(text, from = "auto", to = "zh", options = {}) {
     await response.text().catch(() => "");
     await sleep(waitMs, signal);
     lastError = new Error(`微软翻译请求失败（HTTP ${status}）`);
+  }
+
+  // 若 Edge 接口不可达（404/503/网络断开）且允许备用通道，尝试 Bing 备用通道
+  if (enableBingFallback && canFallbackToBing) {
+    try {
+      const bingResult = await translateViaBing(q, from, to, options);
+      cacheSet(key, bingResult);
+      return bingResult;
+    } catch (bingErr) {
+      console.warn("微软 Bing 备用通道失败:", bingErr.message);
+    }
   }
 
   throw lastError || new Error("微软翻译请求失败");
@@ -286,4 +436,7 @@ export const __test__ = {
   cacheKey,
   cacheGet,
   cacheSet,
+  translateViaBing,
+  parseBingAuth,
+  resetBingTokenCache,
 };

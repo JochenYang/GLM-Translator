@@ -9,6 +9,7 @@ export const DEFAULT_GENERAL = {
   selectionTrigger: "icon",
   minSelectionLength: 1,
   domainBlacklist: [],
+  voiceMode: "online",
 };
 
 /**
@@ -41,5 +42,8 @@ export function normalizeGeneralSettings(stored = {}) {
       stored.selectionTrigger === "instant" ? "instant" : "icon",
     sourceLang: stored.sourceLang || "auto",
     targetLang: stored.targetLang || "zh",
+    voiceMode: ["online", "auto", "local"].includes(stored.voiceMode)
+      ? stored.voiceMode
+      : "online",
   };
 }

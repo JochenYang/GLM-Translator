@@ -1,0 +1,31 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "referer", "operation": "set", "value": "https://transmart.qq.com/" },
+        { "header": "origin", "operation": "set", "value": "https://transmart.qq.com" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||transmart.qq.com/api/imt",
+      "resourceTypes": ["xmlhttprequest"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "referer", "operation": "set", "value": "https://cn.bing.com/translator" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||bing.com/ttranslatev3",
+      "resourceTypes": ["xmlhttprequest"]
+    }
+  }
+]

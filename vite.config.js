@@ -5,21 +5,29 @@ import { crx } from "@crxjs/vite-plugin";
 import manifest from "./manifest.json";
 import fs from "fs-extra";
 
-// 更新为复制新的 content 目录下的 CSS 文件
-function copyContentCSS() {
+// 复制额外静态资源（样式与最新图标）
+function copyStaticAssets() {
   return {
-    name: "copy-content-css",
+    name: "copy-static-assets",
     writeBundle() {
       // 确保目标目录存在
       fs.ensureDirSync("dist/src/content");
       // 复制CSS文件
       fs.copyFileSync("src/content/styles.css", "dist/src/content/styles.css");
+
+      // 确保 public/icons 完整同步到 dist/icons 和 dist/public/icons
+      if (fs.existsSync("public/icons")) {
+        fs.ensureDirSync("dist/icons");
+        fs.copySync("public/icons", "dist/icons", { overwrite: true });
+        fs.ensureDirSync("dist/public/icons");
+        fs.copySync("public/icons", "dist/public/icons", { overwrite: true });
+      }
     },
   };
 }
 
 export default defineConfig({
-  plugins: [vue(), crx({ manifest }), copyContentCSS()],
+  plugins: [vue(), crx({ manifest }), copyStaticAssets()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),

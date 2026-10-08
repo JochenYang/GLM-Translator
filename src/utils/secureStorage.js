@@ -10,6 +10,7 @@ const SELECTED_PROVIDER = "selectedProvider";
 const MIGRATION_FLAG = "secretsMigratedV1";
 
 const LEGACY_SYNC_KEYS = ["glmConfig", "customConfig", "volcengineConfig"];
+const KEYLESS_PROVIDERS = new Set(["youdao", "microsoft", "google", "transmart"]);
 
 /**
  * Strip secret fields from an API config for sync-safe storage.
@@ -331,7 +332,7 @@ export async function getSelectedApiConfig() {
     if (found) return { provider: found.provider || "custom", config: found };
   }
   // 免 Key 提供商无需任何配置即可使用
-  if (selectedProvider === "youdao" || selectedProvider === "microsoft") {
+  if (KEYLESS_PROVIDERS.has(selectedProvider)) {
     return { provider: selectedProvider, config: { provider: selectedProvider } };
   }
   if (selectedProvider && savedApis.length) {
@@ -342,7 +343,7 @@ export async function getSelectedApiConfig() {
     return { provider: savedApis[0].provider || "custom", config: savedApis[0] };
   }
   return {
-    provider: selectedProvider || "youdao",
+    provider: selectedProvider || "microsoft",
     config: null,
   };
 }
@@ -354,7 +355,7 @@ export async function getSelectedApiConfig() {
  */
 export function resolveConfigUrl(api) {
   if (!api) return null;
-  if (api.provider === "youdao" || api.provider === "microsoft") return null;
+  if (KEYLESS_PROVIDERS.has(api.provider)) return null;
   const cfg = api.config;
   if (!cfg) return null;
   return cfg.url || cfg.apiUrl || null;

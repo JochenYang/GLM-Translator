@@ -5,6 +5,35 @@ All notable changes to GLM Translator are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-10-08
+
+### Added
+
+- **Google and Tencent TranSmart free translation engines**: Keyless translation
+  providers integrated into the unified translation service. Google provides
+  broad global language coverage; Tencent TranSmart offers ultra-fast response
+  (around 0.2s) via domestic servers. Both include signature verification,
+  LRU caching, and unit test guards.
+- **Natural speech system with native human pronunciation**: Integrated Youdao
+  native speaker recordings (`dict.youdao.com/dictvoice`) for words and short
+  phrases (English US/UK and Chinese) to eliminate robotic synthesis.
+- **Popup window speech playback**: Speaker action buttons added to the popup
+  input area (source text) and result area (translation), supporting real-time
+  playback with animated status indication and click-to-stop.
+- **Voice engine mode configuration & preview**: Settings page adds voice engine
+  mode selection (Natural Online/Human, Smart Choice, System Offline), plus
+  dual preview cards for both native human words and full sentences.
+- **Session token isolation for speech**: Thread-safe session token management
+  in `speak.js` preventing playback collisions, stale queue retries, and
+  unexpected automatic speech upon input changes.
+
+### Changed
+
+- **Clean translation prompt**: AI chat prompt refined to encourage natural,
+  colloquial translation style rather than stiff translationese.
+- **CSP & network proxy**: Background service worker proxies TTS audio fetching
+  to data URLs, bypassing page-level CSP and CORS blocks.
+
 ## [1.5.0] - 2026-09-25
 
 ### Added

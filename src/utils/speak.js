@@ -61,7 +61,7 @@ export function isHighQualityVoice(voice) {
   ) {
     return false;
   }
-  // 高质量信号
+  // 高质量信号（现代神经网络或云端音色）
   if (
     /natural|neural|online|wavenet|journey|premium|enhanced|studio|multilingual/.test(
       name
@@ -69,8 +69,6 @@ export function isHighQualityVoice(voice) {
   ) {
     return true;
   }
-  // Google 系统音一般比 MS Desktop 中文好一些
-  if (/google/.test(name) && !/desktop/.test(name)) return true;
   return false;
 }
 
@@ -228,20 +226,67 @@ export function splitTtsChunks(text, maxLen = 160) {
 }
 
 /**
- * 本地音色是否过差，需要走在线 TTS。
- * 中文在 Chrome/Windows 上几乎总是只有慧慧 Desktop → 走在线。
+ * 判断是否属于短词/短语（适合有道真人词典发音）：
+ * - 单个英文单词或短语（1~4 个词），无句末终止标点，长度 <= 40
+ * - 中文词汇（1~6 字），无空白符
+ */
+export function isShortWordOrPhrase(text, bcp47 = "en") {
+  const t = String(text || "").trim();
+  if (!t || t.length > 40) return false;
+  if (/[.!?…？。！\n;；:：]/.test(t)) return false;
+  const langBase = (bcp47 || "").toLowerCase().split("-")[0];
+  if (langBase === "en") {
+    const words = t.replace(/[“”‘’"']/g, " ").split(/\s+/).filter(Boolean);
+    return words.length >= 1 && words.length <= 4;
+  }
+  if (langBase === "zh" || langBase === "cmn") {
+    return t.length >= 1 && t.length <= 6 && !/\s/.test(t);
+  }
+  if (langBase === "ja" || langBase === "ko") {
+    return t.length >= 1 && t.length <= 10 && !/\s/.test(t);
+  }
+  return false;
+}
+
+/**
+ * 构造有道真人发音地址（短词/短语真人原声，支持英音/美音）
+ * @param {string} text
+ * @param {string} bcp47
+ * @param {'us'|'uk'} [accent='us']
+ */
+export function buildYoudaoVoiceUrl(text, bcp47 = "en", accent = "us") {
+  const cleaned = String(text || "").trim().replace(/[.!?…,;:]+$/g, "");
+  const audio = encodeURIComponent(cleaned);
+  const langBase = (bcp47 || "").toLowerCase().split("-")[0];
+  if (langBase === "en") {
+    const type = accent === "uk" ? 1 : 2;
+    return `https://dict.youdao.com/dictvoice?audio=${audio}&type=${type}`;
+  }
+  const leMap = {
+    zh: "zh",
+    cmn: "zh",
+    ja: "jap",
+    ko: "ko",
+    fr: "fr",
+    de: "de",
+    es: "es",
+    ru: "ru",
+  };
+  const le = leMap[langBase] || langBase;
+  return `https://dict.youdao.com/dictvoice?audio=${audio}&le=${encodeURIComponent(le)}`;
+}
+
+/**
+ * 本地音色是否过差（如系统仅有机械音 Desktop），需要走在线 TTS。
  * @param {SpeechSynthesisVoice|null} voice
  * @param {number} score
  * @param {string} bcp47
  */
 export function shouldUseOnlineTts(voice, score, bcp47) {
-  const base = (bcp47 || "").toLowerCase().split("-")[0];
-  if (base === "zh" || base === "cmn") {
-    // 只有明确的高质量中文音才用本地
-    return !isHighQualityVoice(voice);
-  }
-  // 其它语言：完全没有匹配音，或分数极低
-  if (!voice || score < 50) return true;
+  if (!voice) return true;
+  // 本地明确为 Desktop 机械音（慧慧、David、Zira 等），优先走在线自然发音
+  if (!isHighQualityVoice(voice)) return true;
+  if (score < 50) return true;
   return false;
 }
 
@@ -252,7 +297,6 @@ export function shouldUseOnlineTts(voice, score, bcp47) {
  */
 export function buildGoogleTtsUrl(text, bcp47) {
   const tl = (bcp47 || "zh-CN").replace("_", "-");
-  // client=tw-ob 为常用免费端点
   return (
     "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=" +
     encodeURIComponent(text) +
@@ -266,36 +310,80 @@ export function buildGoogleTtsUrl(text, bcp47) {
  * @param {string} langCode - 如 zh / en
  * @returns {{ mode: 'local'|'online', voiceName: string, detail: string }}
  */
-export function describeSpeakEngine(langCode = "zh") {
+export function describeSpeakEngine(langCode = "zh", voiceMode = "online") {
   const bcp47 = toSpeechLang(langCode) || "zh-CN";
+  if (voiceMode === "online") {
+    return {
+      mode: "online",
+      voiceName: "高质自然音（短词真人原声 / 在线高质发音）",
+      detail: "优先使用母语播音员真人原声与在线高质发音，彻底告别机械合成音。",
+    };
+  }
   const synth =
     typeof window !== "undefined" && window.speechSynthesis
       ? window.speechSynthesis
       : null;
   const voices = synth ? loadVoices(synth) : [];
   const { voice, score } = pickBestVoiceDetailed(voices, bcp47);
+  if (voiceMode === "local") {
+    return {
+      mode: "local",
+      voiceName: voice?.name || "系统默认",
+      detail: `强制使用本机 Web Speech 离线音色（${voice?.lang || bcp47}）。`,
+    };
+  }
+  // auto 模式
   if (shouldUseOnlineTts(voice, score, bcp47)) {
     return {
       mode: "online",
-      voiceName: "在线自然音（Google TTS 兜底）",
+      voiceName: "高质自然音（智能优选·在线自然发音）",
       detail:
-        "系统未检测到高质量中文 Natural 音，将使用在线朗读，听感更自然。",
+        "本机未安装 Edge 专属 Neural 神经音，智能优选已自动切换为高质真人原声与在线音（与推荐模式发音一致）。",
     };
   }
   return {
     mode: "local",
     voiceName: voice?.name || "系统默认",
-    detail: `使用本机 Web Speech 音色（${voice?.lang || bcp47}）。`,
+    detail: `使用本机高质量自然音色（${voice?.lang || bcp47}）。`,
   };
 }
 
+let currentSessionId = 0;
+let localPlayTimer = null;
+let currentEndCallback = null;
+
 /** 停止本地与在线朗读 */
 function stopAll(synth) {
+  // 1. 会话自增，废黜所有之前异步任务的回调与重试
+  currentSessionId += 1;
+
+  // 2. 清除本地播放挂起的定时器
+  if (localPlayTimer) {
+    clearTimeout(localPlayTimer);
+    localPlayTimer = null;
+  }
+
+  // 3. 触发结束回调并清理
+  if (currentEndCallback) {
+    const cb = currentEndCallback;
+    currentEndCallback = null;
+    try {
+      cb();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  // 4. 取消本地合成器并清空队列
   try {
-    if (synth) synth.cancel();
+    if (synth) {
+      synth.cancel();
+    }
   } catch (_) {
     /* ignore */
   }
+
+  // 5. 中止网络请求
   if (onlineAbort) {
     try {
       onlineAbort.abort();
@@ -304,8 +392,12 @@ function stopAll(synth) {
     }
     onlineAbort = null;
   }
+
+  // 6. 销毁当前 HTML5 Audio 实例，移除监听器以防止触发 onerror 二次播放
   if (activeAudio) {
     try {
+      activeAudio.onended = null;
+      activeAudio.onerror = null;
       activeAudio.pause();
       activeAudio.src = "";
     } catch (_) {
@@ -315,70 +407,151 @@ function stopAll(synth) {
   }
 }
 
+/** 外部显式停止朗读 */
+export function stopSpeaking() {
+  const synth =
+    typeof window !== "undefined"
+      ? window.speechSynthesis
+      : typeof speechSynthesis !== "undefined"
+        ? speechSynthesis
+        : null;
+  stopAll(synth);
+}
+
 /**
- * 在线朗读：经 background 拉取音频（绕过页面 CSP/CORS），再本地播放。
+ * 在线朗读：优先短词真人原声，长句走高质自然音，经 background 代理避免 CSP 拦截。
  * @param {string} text
  * @param {string} bcp47
+ * @param {object} [options]
+ * @param {number} sessionId
  */
-async function speakOnline(text, bcp47) {
+async function speakOnline(text, bcp47, options = {}, sessionId) {
   const chunks = splitTtsChunks(text, 160);
-  if (!chunks.length) return false;
+  if (!chunks.length) {
+    if (sessionId === currentSessionId && typeof options.onEnd === "function") {
+      options.onEnd();
+    }
+    return false;
+  }
 
   onlineAbort = new AbortController();
   const { signal } = onlineAbort;
 
   for (const chunk of chunks) {
-    if (signal.aborted) return false;
-    const url = buildGoogleTtsUrl(chunk, bcp47);
-    let playUrl = url;
+    if (signal.aborted || sessionId !== currentSessionId) {
+      return false;
+    }
+    // 短词/词组优先有道真人原声；长句走 Google/在线自然音
+    const isShort = isShortWordOrPhrase(chunk, bcp47);
+    const primaryUrl = isShort
+      ? buildYoudaoVoiceUrl(chunk, bcp47)
+      : buildGoogleTtsUrl(chunk, bcp47);
+    const fallbackUrl = isShort
+      ? buildGoogleTtsUrl(chunk, bcp47)
+      : buildYoudaoVoiceUrl(chunk, bcp47);
 
-    // 优先走扩展后台请求，避免网页 CSP 拦截
+    let playUrl = primaryUrl;
+
+    // 优先走扩展后台请求拉取为 dataUrl，彻底绕过页面 CSP/CORS 拦截
     try {
       if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
-        const resp = await chrome.runtime.sendMessage({
+        let resp = await chrome.runtime.sendMessage({
           action: "fetchTtsAudio",
-          url,
+          url: primaryUrl,
         });
         if (resp?.dataUrl) {
           playUrl = resp.dataUrl;
-        } else if (resp?.error) {
-          console.warn("后台拉取 TTS 失败:", resp.error);
+        } else if (fallbackUrl) {
+          resp = await chrome.runtime.sendMessage({
+            action: "fetchTtsAudio",
+            url: fallbackUrl,
+          });
+          if (resp?.dataUrl) {
+            playUrl = resp.dataUrl;
+          }
         }
       }
     } catch (e) {
       console.warn("TTS 消息失败，尝试直接播放:", e);
     }
 
+    if (signal.aborted || sessionId !== currentSessionId) {
+      return false;
+    }
+
     await new Promise((resolve, reject) => {
-      if (signal.aborted) {
-        resolve();
-        return;
-      }
       const audio = new Audio(playUrl);
       activeAudio = audio;
-      audio.onended = () => resolve();
+
+      audio.onended = () => {
+        audio.onended = null;
+        audio.onerror = null;
+        if (activeAudio === audio) activeAudio = null;
+        resolve();
+      };
+
       audio.onerror = () => {
-        // 再试一次直连
-        if (playUrl !== url) {
-          const a2 = new Audio(url);
+        audio.onended = null;
+        audio.onerror = null;
+        if (activeAudio === audio) activeAudio = null;
+
+        // 如果已被打断或会话已改变，直接静默退出，绝不重试与回退！
+        if (signal.aborted || sessionId !== currentSessionId) {
+          resolve();
+          return;
+        }
+
+        if (playUrl !== primaryUrl && primaryUrl) {
+          const a2 = new Audio(primaryUrl);
           activeAudio = a2;
-          a2.onended = () => resolve();
-          a2.onerror = () => reject(new Error("在线朗读失败"));
-          a2.play().catch(reject);
+          a2.onended = () => {
+            a2.onended = null;
+            a2.onerror = null;
+            if (activeAudio === a2) activeAudio = null;
+            resolve();
+          };
+          a2.onerror = () => {
+            a2.onended = null;
+            a2.onerror = null;
+            if (activeAudio === a2) activeAudio = null;
+            if (signal.aborted || sessionId !== currentSessionId) resolve();
+            else reject(new Error("在线朗读失败"));
+          };
+          a2.play().catch((err) => {
+            if (signal.aborted || sessionId !== currentSessionId) resolve();
+            else reject(err);
+          });
         } else {
           reject(new Error("在线朗读失败"));
         }
       };
-      audio.play().catch(reject);
+
+      audio.play().catch((err) => {
+        if (signal.aborted || sessionId !== currentSessionId) {
+          resolve();
+        } else {
+          reject(err);
+        }
+      });
     });
+  }
+
+  if (sessionId === currentSessionId) {
+    currentEndCallback = null;
+    if (typeof options.onEnd === "function") {
+      options.onEnd();
+    }
   }
   return true;
 }
 
 /** 本机 speechSynthesis 朗读 */
-function speakLocal(synth, content, bcp47, voice, rate, pitch, repeat) {
+function speakLocal(synth, content, bcp47, voice, rate, pitch, repeat, options = {}, sessionId) {
   let i = 0;
   const play = () => {
+    if (sessionId !== currentSessionId) {
+      return;
+    }
     const u = new SpeechSynthesisUtterance(content);
     u.lang = bcp47;
     u.rate = rate;
@@ -389,16 +562,31 @@ function speakLocal(synth, content, bcp47, voice, rate, pitch, repeat) {
       if (voice.lang) u.lang = voice.lang;
     }
     u.onend = () => {
+      if (sessionId !== currentSessionId) return;
       i += 1;
-      if (i < repeat) setTimeout(play, 450);
+      if (i < repeat) {
+        localPlayTimer = setTimeout(play, 450);
+      } else {
+        currentEndCallback = null;
+        if (typeof options.onEnd === "function") options.onEnd();
+      }
+    };
+    u.onerror = (err) => {
+      if (sessionId !== currentSessionId) return;
+      console.error("朗读失败:", err);
+      currentEndCallback = null;
+      if (typeof options.onError === "function") options.onError(err);
     };
     try {
       synth.speak(u);
     } catch (err) {
+      if (sessionId !== currentSessionId) return;
       console.error("朗读失败:", err);
+      currentEndCallback = null;
+      if (typeof options.onError === "function") options.onError(err);
     }
   };
-  setTimeout(play, 0);
+  localPlayTimer = setTimeout(play, 0);
   return true;
 }
 
@@ -411,8 +599,11 @@ function speakLocal(synth, content, bcp47, voice, rate, pitch, repeat) {
  *   pitch?: number,
  *   voiceURI?: string,
  *   repeat?: number,
+ *   voiceMode?: 'online'|'auto'|'local',
  *   forceOnline?: boolean,
  *   forceLocal?: boolean,
+ *   onEnd?: () => void,
+ *   onError?: (err: any) => void,
  *   onUnsupported?: (msg: string) => void
  * }} [options]
  * @returns {boolean}
@@ -428,7 +619,10 @@ export function speakText(text, options = {}) {
         ? speechSynthesis
         : null;
 
+  // 1. 彻底停止先前的朗读并分配全新的会话 ID
   stopAll(synth);
+  const sessionId = currentSessionId;
+  currentEndCallback = typeof options.onEnd === "function" ? options.onEnd : null;
 
   const bcp47 = resolveSpeakLang(content, options.lang);
   const rate =
@@ -448,25 +642,36 @@ export function speakText(text, options = {}) {
     options.voiceURI || ""
   );
 
+  const mode = options.voiceMode || "online";
   const useOnline =
     options.forceOnline === true ||
     (options.forceLocal !== true &&
-      shouldUseOnlineTts(voice, score, bcp47));
+      mode !== "local" &&
+      (mode === "online" || shouldUseOnlineTts(voice, score, bcp47)));
 
   if (useOnline) {
-    // 在线中文 TTS：明显比慧慧 Desktop 自然
-    speakOnline(content, bcp47).catch((err) => {
+    // 优先真人词典原声与在线高质自然发音，听感地道丝滑
+    speakOnline(content, bcp47, options, sessionId).catch((err) => {
+      // 关键防呆：若会话已被更新或打断，绝不回退本地音，直接静默退出！
+      if (sessionId !== currentSessionId) {
+        return;
+      }
       console.warn("在线朗读失败，回退本地音:", err);
       if (synth && typeof SpeechSynthesisUtterance !== "undefined") {
-        speakLocal(synth, content, bcp47, voice, rate, pitch, repeat);
-      } else if (typeof options.onUnsupported === "function") {
-        options.onUnsupported("朗读失败，请稍后重试");
+        speakLocal(synth, content, bcp47, voice, rate, pitch, repeat, options, sessionId);
+      } else {
+        currentEndCallback = null;
+        if (typeof options.onError === "function") options.onError(err);
+        if (typeof options.onUnsupported === "function") {
+          options.onUnsupported("朗读失败，请稍后重试");
+        }
       }
     });
     return true;
   }
 
   if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
+    currentEndCallback = null;
     const msg =
       "你的浏览器不支持朗读功能。可以换 Chrome 或 Edge 试试。";
     if (typeof options.onUnsupported === "function") {
@@ -478,7 +683,8 @@ export function speakText(text, options = {}) {
   }
 
   if (voices.length === 0) {
-    setTimeout(() => {
+    localPlayTimer = setTimeout(() => {
+      if (sessionId !== currentSessionId) return;
       loadVoices(synth);
       const again = pickBestVoiceDetailed(
         loadVoices(synth),
@@ -486,15 +692,16 @@ export function speakText(text, options = {}) {
         options.voiceURI || ""
       );
       if (shouldUseOnlineTts(again.voice, again.score, bcp47)) {
-        speakOnline(content, bcp47).catch(() =>
-          speakLocal(synth, content, bcp47, again.voice, rate, pitch, repeat)
-        );
+        speakOnline(content, bcp47, options, sessionId).catch(() => {
+          if (sessionId !== currentSessionId) return;
+          speakLocal(synth, content, bcp47, again.voice, rate, pitch, repeat, options, sessionId);
+        });
       } else {
-        speakLocal(synth, content, bcp47, again.voice, rate, pitch, repeat);
+        speakLocal(synth, content, bcp47, again.voice, rate, pitch, repeat, options, sessionId);
       }
     }, 150);
     return true;
   }
 
-  return speakLocal(synth, content, bcp47, voice, rate, pitch, repeat);
+  return speakLocal(synth, content, bcp47, voice, rate, pitch, repeat, options, sessionId);
 }

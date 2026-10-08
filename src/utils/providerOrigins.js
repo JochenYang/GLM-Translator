@@ -12,6 +12,11 @@ export const KNOWN_PROVIDER_ORIGINS = [
   "https://dict.youdao.com/*",
   "https://openapi.youdao.com/*",
   "https://edge.microsoft.com/*",
+  "https://translate.google.com/*",
+  "https://translate.googleapis.com/*",
+  "https://cn.bing.com/*",
+  "https://www.bing.com/*",
+  "https://transmart.qq.com/*",
 ];
 
 /**

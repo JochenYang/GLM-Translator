@@ -21,9 +21,25 @@ export const allLanguages = {
   en: "英语",
   it: "意大利语",
   vi: "越南语",
+  id: "印尼语",
+  ms: "马来语",
+  hi: "印地语",
   zh: "中文（简体）",
   "zh-TW": "中文（繁体）",
 };
+
+/** 常用高频语言代码列表（置顶展示） */
+export const COMMON_LANGUAGE_CODES = [
+  "zh",
+  "en",
+  "ja",
+  "ko",
+  "fr",
+  "de",
+  "es",
+  "ru",
+  "zh-TW",
+];
 
 // 获取特定服务商的语言列表 - 不再过滤语言
 export const getLanguages = () => {

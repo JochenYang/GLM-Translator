@@ -114,7 +114,9 @@ async function fetchTtsAudioDataUrl(url) {
   const allowed =
     host === "translate.google.com" ||
     host.endsWith(".google.com") ||
-    host === "translate.googleapis.com";
+    host === "translate.googleapis.com" ||
+    host === "dict.youdao.com" ||
+    host.endsWith(".youdao.com");
   if (!allowed || parsed.protocol !== "https:") {
     throw new Error("TTS 域名未授权");
   }

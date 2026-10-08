@@ -1,6 +1,6 @@
 /**
  * 预设翻译服务商配置
- * 包含主流AI翻译服务的完整配置信息
+ * 包含主流AI翻译服务与免Key极速服务的完整配置信息
  */
 
 export const PROVIDER_PRESETS = {
@@ -11,12 +11,14 @@ export const PROVIDER_PRESETS = {
     icon: '🤖',
     url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
     models: [
-      { id: 'glm-4.7-flash', name: 'GLM-4.7-Flash (推荐)', description: '免费模型，翻译首选' },
+      { id: 'glm-4-flash', name: 'GLM-4-Flash (极速推荐)', description: '智谱永久免费，无思考链极速响应' },
+      { id: 'glm-4-flash-250414', name: 'GLM-4-Flash-0414', description: '极速稳定快照版' },
+      { id: 'glm-4.7-flash', name: 'GLM-4.7-Flash', description: '免费模型，翻译首选' },
       { id: 'glm-5.3', name: 'GLM-5.3', description: '最新旗舰模型' },
       { id: 'glm-4.6', name: 'GLM-4.6', description: '高级推理与工具调用' },
       { id: 'glm-4.5-air', name: 'GLM-4.5-Air', description: '轻量模型' }
     ],
-    defaultModel: 'glm-4.7-flash',
+    defaultModel: 'glm-4-flash',
     apiKeyUrl: 'https://open.bigmodel.cn/',
     apiKeyHelp: 'provider.apiKeyHelp.glm',
     pricing: '免费额度 + 按量计费',
@@ -153,6 +155,52 @@ export const PROVIDER_PRESETS = {
     ]
   },
 
+  google: {
+    id: 'google',
+    name: '谷歌免费翻译',
+    description: 'provider.desc.google',
+    icon: '🌐',
+    url: '',
+    models: [
+      { id: 'google-free', name: '谷歌免费翻译 (无需配置)', description: '基于 Google 翻译引擎，开箱即用' }
+    ],
+    defaultModel: 'google-free',
+    apiKeyUrl: '',
+    apiKeyHelp: 'provider.apiKeyHelp.google',
+    pricing: 'provider.pricing.google',
+    features: ['provider.feature.googleFree', 'provider.feature.multiLang'],
+    noApiKeyRequired: true,
+    setupGuide: [
+      '选择"谷歌免费翻译"即可使用',
+      '无需任何 API Key 或配置',
+      '基于 Google 翻译引擎，自动识别语言',
+      '支持全球多种语言互译与快速响应'
+    ]
+  },
+
+  transmart: {
+    id: 'transmart',
+    name: '腾讯交互翻译',
+    description: 'provider.desc.transmart',
+    icon: '🐧',
+    url: '',
+    models: [
+      { id: 'transmart-free', name: '腾讯交互翻译 (无需配置)', description: '基于腾讯 TranSmart 引擎，国内服务器极速响应' }
+    ],
+    defaultModel: 'transmart-free',
+    apiKeyUrl: '',
+    apiKeyHelp: 'provider.apiKeyHelp.transmart',
+    pricing: 'provider.pricing.transmart',
+    features: ['provider.feature.transmartFree', 'provider.feature.fastResponse'],
+    noApiKeyRequired: true,
+    setupGuide: [
+      '选择"腾讯交互翻译"即可使用',
+      '无需任何 API Key 或配置',
+      '基于腾讯 TranSmart 引擎，国内 0.2 秒极速响应',
+      '适合中文与多种常用语言快速互译'
+    ]
+  },
+
   youdao: {
     id: 'youdao',
     name: '有道免费翻译',
@@ -233,10 +281,12 @@ export function getAllProviders() {
   return Object.values(PROVIDER_PRESETS);
 }
 
-// 获取推荐提供商（中国大陆用户友好）
+// 获取推荐提供商（免费高速排前列，中国大陆用户友好）
 export function getRecommendedProviders() {
   return [
-    PROVIDER_PRESETS.microsoft, // 免费方案排第一
+    PROVIDER_PRESETS.microsoft,
+    PROVIDER_PRESETS.google,
+    PROVIDER_PRESETS.transmart,
     PROVIDER_PRESETS.youdao,
     PROVIDER_PRESETS.glm,
     PROVIDER_PRESETS.volcengine,

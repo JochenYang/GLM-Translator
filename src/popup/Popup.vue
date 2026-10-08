@@ -5,19 +5,28 @@
       <!-- 语言选择区域 -->
       <div class="flex items-center flex-1">
         <!-- 源语言选择 -->
-        <select v-model="sourceLang" class="language-select">
+        <select
+          v-model="sourceLang"
+          class="language-select"
+          @change="onSourceLangChange"
+        >
           <option value="auto">{{ translate("lang.auto") }}</option>
-          <optgroup
-            v-for="(langs, letter) in groupedLanguages"
-            :key="letter"
-            :label="letter"
-          >
+          <optgroup :label="translate('lang.common')">
             <option
-              v-for="(name, code) in filteredSourceLanguages(langs)"
+              v-for="code in commonLanguages"
               :key="code"
               :value="code"
             >
-              {{ name }}
+              {{ languages[code] || code }}
+            </option>
+          </optgroup>
+          <optgroup :label="translate('lang.all')">
+            <option
+              v-for="code in otherLanguages"
+              :key="code"
+              :value="code"
+            >
+              {{ languages[code] || code }}
             </option>
           </optgroup>
         </select>
@@ -43,14 +52,27 @@
         </button>
 
         <!-- 目标语言选择 -->
-        <select v-model="targetLang" class="language-select">
-          <optgroup
-            v-for="(langs, letter) in targetLanguageGroups"
-            :key="letter"
-            :label="letter"
-          >
-            <option v-for="(name, code) in langs" :key="code" :value="code">
-              {{ name }}
+        <select
+          v-model="targetLang"
+          class="language-select"
+          @change="onTargetLangChange"
+        >
+          <optgroup :label="translate('lang.common')">
+            <option
+              v-for="code in commonLanguages"
+              :key="code"
+              :value="code"
+            >
+              {{ languages[code] || code }}
+            </option>
+          </optgroup>
+          <optgroup :label="translate('lang.all')">
+            <option
+              v-for="code in otherLanguages"
+              :key="code"
+              :value="code"
+            >
+              {{ languages[code] || code }}
             </option>
           </optgroup>
         </select>
@@ -117,6 +139,37 @@
           @input="handleInput"
           ref="inputTextarea"
         ></textarea>
+        <div v-if="inputText.trim()" class="input-actions">
+          <button
+            type="button"
+            class="action-btn"
+            @click="toggleSpeakInput"
+            :title="isSpeakingInput ? translate('popup.stopSpeech') : translate('popup.speakInput')"
+          >
+            <svg
+              v-if="isSpeakingInput"
+              viewBox="0 0 24 24"
+              class="action-icon text-primary-600 animate-pulse"
+              fill="currentColor"
+            >
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              class="action-icon"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+            </svg>
+          </button>
+        </div>
         <div class="char-count">{{ inputText.length }}</div>
       </div>
 
@@ -139,6 +192,36 @@
           </div>
           <div v-if="translatedText" class="result-actions">
             <button
+              type="button"
+              class="action-btn"
+              @click="toggleSpeakResult"
+              :title="isSpeakingResult ? translate('popup.stopSpeech') : translate('popup.speakResult')"
+            >
+              <svg
+                v-if="isSpeakingResult"
+                viewBox="0 0 24 24"
+                class="action-icon text-primary-600 animate-pulse"
+                fill="currentColor"
+              >
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+              <svg
+                v-else
+                viewBox="0 0 24 24"
+                class="action-icon"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              </svg>
+            </button>
+            <button
+              type="button"
               class="action-btn"
               @click="copyText"
               :title="translate('popup.copyTranslation')"
@@ -159,7 +242,7 @@
 
 <script>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
-import { allLanguages } from "../common/languages";
+import { allLanguages, COMMON_LANGUAGE_CODES } from "../common/languages";
 import {
   initLanguage,
   getCurrentLanguage,
@@ -175,6 +258,8 @@ import {
   saveApiConfigs,
 } from "../utils/secureStorage.js";
 import { getProviderConfig } from "../config/providers.js";
+import { speakText, stopSpeaking } from "../utils/speak.js";
+import { normalizeGeneralSettings } from "../utils/generalSettings.js";
 
 export default {
   name: "Popup",
@@ -197,13 +282,90 @@ export default {
     let previousProvider = "microsoft"; // 切换失败时回退
     let resizeObserverRef = null; // ResizeObserver 引用，用于 onUnmounted 断开
 
+    // ─── 语音朗读 ────────────────────────────────────────────
+    const isSpeakingInput = ref(false);
+    const isSpeakingResult = ref(false);
+    let generalSettings = normalizeGeneralSettings();
+
+    const loadGeneralSettings = async () => {
+      try {
+        const res = await chrome.storage.sync.get(["general"]);
+        generalSettings = normalizeGeneralSettings(res?.general || {});
+      } catch (e) {
+        console.warn("读取通用设置失败:", e);
+      }
+    };
+
+    const stopAllSpeech = () => {
+      stopSpeaking();
+      isSpeakingInput.value = false;
+      isSpeakingResult.value = false;
+    };
+
+    const toggleSpeakInput = () => {
+      if (isSpeakingInput.value) {
+        stopAllSpeech();
+        return;
+      }
+      stopAllSpeech();
+      const text = inputText.value.trim();
+      if (!text) return;
+
+      let lang = sourceLang.value;
+      if (lang === "auto") {
+        lang = detectedCode.value || resolveSourceLanguage(text);
+      }
+
+      isSpeakingInput.value = true;
+      speakText(text, {
+        lang,
+        voiceMode: generalSettings.voiceMode || "online",
+        onEnd: () => {
+          isSpeakingInput.value = false;
+        },
+        onError: () => {
+          isSpeakingInput.value = false;
+        },
+        onUnsupported: (msg) => {
+          isSpeakingInput.value = false;
+          alert(msg);
+        },
+      });
+    };
+
+    const toggleSpeakResult = () => {
+      if (isSpeakingResult.value) {
+        stopAllSpeech();
+        return;
+      }
+      stopAllSpeech();
+      const text = translatedText.value.trim();
+      if (!text || text === "翻译中..." || text.startsWith("翻译失败")) return;
+
+      isSpeakingResult.value = true;
+      speakText(text, {
+        lang: targetLang.value,
+        voiceMode: generalSettings.voiceMode || "online",
+        onEnd: () => {
+          isSpeakingResult.value = false;
+        },
+        onError: () => {
+          isSpeakingResult.value = false;
+        },
+        onUnsupported: (msg) => {
+          isSpeakingResult.value = false;
+          alert(msg);
+        },
+      });
+    };
+
     // ─── 引擎切换 ────────────────────────────────────────────
     // 免 Key 引擎始终可选；AI 引擎仅在设置页保存过配置后出现
     const engineOptions = computed(() => {
       forceUpdateKey.value;
       const options = [];
       const seen = new Set();
-      for (const id of ["microsoft", "youdao"]) {
+      for (const id of ["microsoft", "google", "transmart", "youdao"]) {
         options.push({
           id,
           name: engineDisplayName(id),
@@ -311,74 +473,84 @@ export default {
       return result;
     };
 
-    // 拼音首字母映射已从 ../utils/pinyin.js 导入
-
-    // 按拼音首字母分组语言
-    const groupedLanguages = computed(() => {
-      const groups = {};
-      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-
-      // 初始化所有字母组
-      letters.forEach((letter) => {
-        groups[letter] = {};
-      });
-
-      // 特殊处理：将'auto'放在'A'组的最前面
-      groups["A"]["auto"] = "自动检测";
-
-      // 按照拼音首字母分组
-      Object.entries(allLanguages).forEach(([code, name]) => {
-        if (code === "auto") return; // 跳过'auto'，因为我们已经单独处理了
-
-        const letter = getPinyinLetter(name);
-        if (!groups[letter]) {
-          groups[letter] = {};
-        }
-        groups[letter][code] = name;
-      });
-
-      // 对每个组内的语言进行排序
-      const sortedGroups = {};
-      letters.forEach((letter) => {
-        if (Object.keys(groups[letter]).length > 0) {
-          const entries = Object.entries(groups[letter]);
-          entries.sort((a, b) => a[1].localeCompare(b[1], "zh-CN"));
-
-          sortedGroups[letter] = {};
-          entries.forEach(([code, name]) => {
-            sortedGroups[letter][code] = name;
-          });
-        }
-      });
-
-      return sortedGroups;
+    // 常用语言列表（置顶）
+    const commonLanguages = computed(() => {
+      forceUpdateKey.value;
+      return COMMON_LANGUAGE_CODES.filter((code) => allLanguages[code]);
     });
 
-    // 源语言过滤函数，保持所有语言不变
-    const filteredSourceLanguages = (langs) => {
-      return langs;
+    // 其余所有语言列表（拼音/字母排序）
+    const otherLanguages = computed(() => {
+      forceUpdateKey.value;
+      const commonSet = new Set(COMMON_LANGUAGE_CODES);
+      return Object.keys(allLanguages)
+        .filter(
+          (code) =>
+            code !== "detect" && code !== "auto" && !commonSet.has(code)
+        )
+        .sort((a, b) => {
+          const nameA = allLanguages[a] || a;
+          const nameB = allLanguages[b] || b;
+          return nameA.localeCompare(nameB, "zh-CN");
+        });
+    });
+
+    // 智能切换源语言和目标语言
+    const switchLanguages = async () => {
+      const oldSource = sourceLang.value;
+      const oldTarget = targetLang.value;
+      let newSource = oldTarget;
+      let newTarget = oldSource;
+
+      // 如果源语言是“自动检测”
+      if (oldSource === "auto") {
+        if (detectedCode.value && detectedCode.value !== oldTarget) {
+          newTarget = detectedCode.value;
+        } else {
+          newTarget = oldTarget === "zh" ? "en" : "zh";
+        }
+      }
+
+      // 如果互换后源与目标相同，智能调整目标语言
+      if (newSource === newTarget) {
+        newTarget = newSource === "zh" ? "en" : "zh";
+      }
+
+      sourceLang.value = newSource;
+      targetLang.value = newTarget;
+
+      // 如果已有有效译文，将译文填入输入框，实现真正的双向对调翻译
+      if (
+        translatedText.value &&
+        translatedText.value !== "翻译中..." &&
+        !translatedText.value.startsWith("翻译失败")
+      ) {
+        const prevResult = translatedText.value;
+        inputText.value = prevResult;
+        translatedText.value = "";
+        detectedCode.value = null;
+        await handleInput();
+      } else if (inputText.value.trim()) {
+        await handleInput();
+      }
     };
 
-    // 目标语言组（排除自动检测）
-    const targetLanguageGroups = computed(() => {
-      const groups = { ...groupedLanguages.value };
-      if (groups["A"] && groups["A"]["auto"]) {
-        delete groups["A"]["auto"];
+    // 语言冲突防呆：防止源与目标选成同一种语言
+    const onSourceLangChange = () => {
+      if (
+        sourceLang.value !== "auto" &&
+        sourceLang.value === targetLang.value
+      ) {
+        targetLang.value = sourceLang.value === "zh" ? "en" : "zh";
       }
-      return groups;
-    });
+    };
 
-    // 切换源语言和目标语言
-    const switchLanguages = () => {
-      if (sourceLang.value !== "auto") {
-        const temp = sourceLang.value;
-        sourceLang.value = targetLang.value;
-        targetLang.value = temp;
-
-        // 交换后自动翻译
-        if (inputText.value) {
-          handleInput();
-        }
+    const onTargetLangChange = () => {
+      if (
+        sourceLang.value !== "auto" &&
+        sourceLang.value === targetLang.value
+      ) {
+        sourceLang.value = targetLang.value === "zh" ? "en" : "zh";
       }
     };
 
@@ -496,6 +668,7 @@ export default {
     // 翻译处理函数
     async function handleTranslate() {
       try {
+        stopAllSpeech();
         isTranslating.value = true;
         progressCurrent.value = 0;
         progressTotal.value = 0;
@@ -568,6 +741,9 @@ export default {
 
     // 修改翻译处理函数
     const handleInput = createDebounce(async () => {
+      // 输入变化时立即停止先前进行的朗读
+      stopAllSpeech();
+
       // 确保输入区域高度自适应
       if (debounceResize) {
         debounceResize();
@@ -646,9 +822,10 @@ export default {
     // 组件挂载时加载设置
     onMounted(async () => {
       try {
-        // 初始化语言
+        // 初始化语言与通用配置
         await initI18nLanguage();
         setupI18nLanguageListener();
+        await loadGeneralSettings();
 
         const settings = await chrome.storage.sync.get(["general"]);
 
@@ -699,8 +876,9 @@ export default {
       }
     });
 
-    // 组件卸载时清理 ResizeObserver
+    // 组件卸载时清理 ResizeObserver 与停止朗读
     onUnmounted(() => {
+      stopAllSpeech();
       if (resizeObserverRef) {
         resizeObserverRef.disconnect();
         resizeObserverRef = null;
@@ -730,9 +908,11 @@ export default {
       isTranslating,
       progressText,
       detectedLabel,
-      groupedLanguages,
-      targetLanguageGroups,
-      filteredSourceLanguages,
+      languages,
+      commonLanguages,
+      otherLanguages,
+      onSourceLangChange,
+      onTargetLangChange,
       switchLanguages,
       handleInput,
       copyText,
@@ -746,6 +926,10 @@ export default {
       engineOptions,
       engineHint,
       onEngineChange,
+      isSpeakingInput,
+      isSpeakingResult,
+      toggleSpeakInput,
+      toggleSpeakResult,
     };
   },
 };
@@ -847,7 +1031,7 @@ export default {
   width: 100%;
   min-height: 120px;
   max-height: 500px; /* 增加最大高度，可容纳更多文本 */
-  padding: 12px;
+  padding: 12px 12px 30px 12px;
   border: 1px solid var(--gt-border);
   border-radius: var(--gt-radius-sm);
   font-size: 14px;
@@ -862,6 +1046,15 @@ export default {
 .input-area:focus {
   border-color: var(--gt-primary);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--gt-primary) 50%, transparent);
+}
+
+.input-actions {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
 }
 
 .char-count {

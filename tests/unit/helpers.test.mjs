@@ -27,6 +27,7 @@ import {
 import {
   containsRejectionPattern,
   pickDetectedLanguage,
+  cleanOutput,
 } from "../../src/services/translator.js";
 import { normalizeGeneralSettings } from "../../src/utils/generalSettings.js";
 import { __test__ as ydTest } from "../../src/services/youdaoTranslate.js";
@@ -39,6 +40,8 @@ import {
   splitTtsChunks,
   buildGoogleTtsUrl,
   resolveSpeakLang,
+  isShortWordOrPhrase,
+  buildYoudaoVoiceUrl,
 } from "../../src/utils/speak.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -459,4 +462,29 @@ describe("speakText Web Speech helper (shipped)", () => {
     assert.match(src, /fetchTtsAudio/);
     assert.match(src, /translate\.google\.com/);
   });
+
+  it("cleanOutput strips wrappers, prefixes and quotes", () => {
+    assert.equal(cleanOutput("<text>\nHello world\n</text>"), "Hello world");
+    assert.equal(cleanOutput("译文：今天天气很好"), "今天天气很好");
+    assert.equal(cleanOutput("Translation: How are you?"), "How are you?");
+    assert.equal(cleanOutput('"Nice to meet you"'), "Nice to meet you");
+    assert.equal(cleanOutput("“很高兴认识你”"), "很高兴认识你");
+    assert.equal(cleanOutput("「很高兴认识你」"), "很高兴认识你");
+  });
+
+  it("identifies short words/phrases and builds Youdao voice URLs", () => {
+    assert.equal(isShortWordOrPhrase("apple", "en"), true);
+    assert.equal(isShortWordOrPhrase("look forward to", "en"), true);
+    assert.equal(isShortWordOrPhrase("This is a long sentence with period.", "en"), false);
+    assert.equal(isShortWordOrPhrase("你好", "zh"), true);
+    assert.equal(isShortWordOrPhrase("这是一段非常长的中文句子并且带句号。", "zh"), false);
+
+    const enUrl = buildYoudaoVoiceUrl("apple", "en", "us");
+    assert.match(enUrl, /dict\.youdao\.com\/dictvoice/);
+    assert.match(enUrl, /type=2/);
+
+    const zhUrl = buildYoudaoVoiceUrl("你好", "zh");
+    assert.match(zhUrl, /le=zh/);
+  });
 });
+

@@ -219,6 +219,29 @@
               <p class="section-desc mt-1">
                 {{ t("settings.voice.desc") }}
               </p>
+
+              <!-- 发音模式选择器 -->
+              <div class="mt-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <label class="field-label" for="voice-mode-select">
+                  {{ t("settings.voice.modeLabel") }}
+                </label>
+                <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <select
+                    id="voice-mode-select"
+                    v-model="settings.voiceMode"
+                    @change="onVoiceModeChange"
+                    class="select max-w-sm"
+                  >
+                    <option value="online">{{ t("settings.voice.modeOnline") }}</option>
+                    <option value="auto">{{ t("settings.voice.modeAuto") }}</option>
+                    <option value="local">{{ t("settings.voice.modeLocal") }}</option>
+                  </select>
+                </div>
+                <p class="field-hint mt-2">
+                  {{ t("settings.voice.modeHint") }}
+                </p>
+              </div>
+
               <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <div
                   v-for="lang in ['zh', 'en']"
@@ -226,28 +249,64 @@
                   class="rounded-lg border border-slate-200 bg-slate-50/60 p-4"
                 >
                   <div class="flex items-center justify-between gap-2">
-                    <span class="font-medium">
+                    <span class="font-semibold text-slate-800">
                       {{ lang === "zh" ? t("settings.voice.zh") : t("settings.voice.en") }}
                     </span>
-                    <button
-                      type="button"
-                      @click="previewSpeak(lang)"
-                      :disabled="speakingPreview === lang"
-                      class="btn-primary px-3 py-1.5"
-                    >
-                      {{
-                        speakingPreview === lang
-                          ? t("settings.voice.playing")
-                          : lang === "zh"
-                            ? t("settings.voice.previewZh")
-                            : t("settings.voice.previewEn")
-                      }}
-                    </button>
+                    <span class="text-xs text-slate-400">
+                      {{ lang === "zh" ? "zh-CN" : "en-US" }}
+                    </span>
                   </div>
-                  <p class="mt-2 text-sm leading-relaxed text-slate-700">
-                    {{ voiceSamples[lang] }}
-                  </p>
-                  <p class="mt-2 text-xs text-slate-500">
+
+                  <!-- 双试听操作行：短词真人原声与长句 -->
+                  <div class="mt-3 space-y-2">
+                    <div class="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white p-2.5">
+                      <div class="min-w-0 flex-1">
+                        <div class="text-xs text-slate-400">
+                          {{ lang === "zh" ? "中文短词 (真人母语原声)" : "English Word (Human Voice)" }}
+                        </div>
+                        <div class="text-sm font-medium text-slate-700">
+                          “{{ lang === "zh" ? voiceSamples.zhShort : voiceSamples.enShort }}”
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        @click="previewSpeak(lang, 'short')"
+                        :disabled="speakingPreview === lang + '-short'"
+                        class="btn-primary shrink-0 px-3 py-1 text-xs"
+                      >
+                        {{
+                          speakingPreview === lang + "-short"
+                            ? t("settings.voice.playing")
+                            : t("settings.voice.previewShort")
+                        }}
+                      </button>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white p-2.5">
+                      <div class="min-w-0 flex-1">
+                        <div class="text-xs text-slate-400">
+                          {{ lang === "zh" ? "长句 (整句朗读)" : "Sentence (Full Speech)" }}
+                        </div>
+                        <div class="truncate text-xs text-slate-600">
+                          {{ lang === "zh" ? voiceSamples.zhSentence : voiceSamples.enSentence }}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        @click="previewSpeak(lang, 'sentence')"
+                        :disabled="speakingPreview === lang + '-sentence'"
+                        class="btn-secondary shrink-0 px-3 py-1 text-xs"
+                      >
+                        {{
+                          speakingPreview === lang + "-sentence"
+                            ? t("settings.voice.playing")
+                            : t("settings.voice.previewSentence")
+                        }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <p class="mt-3 text-xs text-slate-500">
                     {{ t("settings.voice.engine") }}:
                     {{ voiceEngines[lang].voiceName }}
                   </p>
@@ -408,8 +467,10 @@ export default {
       saveToastTimer: null,
       speakingPreview: "",
       voiceSamples: {
-        zh: "你好，这是 GLM Translator 的中文朗读预览。希望听起来自然流畅。",
-        en: "Hello, this is a voice preview from GLM Translator. I hope it sounds clear and natural.",
+        zhShort: "你好世界",
+        zhSentence: "你好，这是 GLM Translator 的中文朗读预览。希望听起来自然流畅。",
+        enShort: "Hello world",
+        enSentence: "Hello, this is a voice preview from GLM Translator. I hope it sounds clear and natural.",
       },
       voiceEngines: {
         zh: { mode: "online", voiceName: "…", detail: "" },
@@ -459,34 +520,57 @@ export default {
     }
   },
   methods: {
+    onVoiceModeChange() {
+      this.refreshVoiceEngines();
+      this.saveSettings();
+    },
+
     refreshVoiceEngines() {
       try {
+        const mode = this.settings?.voiceMode || "online";
         this.voiceEngines = {
-          zh: describeSpeakEngine("zh"),
-          en: describeSpeakEngine("en"),
+          zh: describeSpeakEngine("zh", mode),
+          en: describeSpeakEngine("en", mode),
         };
       } catch (e) {
         console.warn("刷新朗读引擎信息失败:", e);
       }
     },
 
-    previewSpeak(lang) {
+    previewSpeak(lang, type = "short") {
+      const isShort = type === "short";
       const text =
-        lang === "en" ? this.voiceSamples.en : this.voiceSamples.zh;
-      this.speakingPreview = lang;
+        lang === "en"
+          ? isShort
+            ? this.voiceSamples.enShort
+            : this.voiceSamples.enSentence
+          : isShort
+            ? this.voiceSamples.zhShort
+            : this.voiceSamples.zhSentence;
+
+      const previewKey = `${lang}-${type}`;
+      this.speakingPreview = previewKey;
       this.refreshVoiceEngines();
+
       speakText(text, {
         lang,
         rate: 0.85,
+        voiceMode: this.settings?.voiceMode || "online",
+        onEnd: () => {
+          if (this.speakingPreview === previewKey) this.speakingPreview = "";
+        },
+        onError: () => {
+          if (this.speakingPreview === previewKey) this.speakingPreview = "";
+        },
         onUnsupported: (msg) => {
           alert(msg);
-          this.speakingPreview = "";
+          if (this.speakingPreview === previewKey) this.speakingPreview = "";
         },
       });
-      // 预估时长后恢复按钮（在线/本地结束事件不统一，用定时器即可）
-      const ms = Math.min(20000, Math.max(2500, text.length * 120));
+
+      const ms = Math.min(20000, Math.max(2500, text.length * 150));
       setTimeout(() => {
-        if (this.speakingPreview === lang) this.speakingPreview = "";
+        if (this.speakingPreview === previewKey) this.speakingPreview = "";
       }, ms);
     },
 

@@ -1,9 +1,9 @@
 /**
- * Microsoft free translate (Edge translatetext endpoint): lang map,
- * request shape, response parsing, 429 backoff, cache, abort.
+ * Microsoft free translate (Edge translatetext endpoint + Bing Web fallback):
+ * lang map, request shape, response parsing, 429 backoff, cache, abort, Bing fallback.
  * Run: node --test tests/unit/microsoftTranslate.test.mjs
  */
-import { describe, it, beforeEach } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 const {
@@ -54,11 +54,6 @@ describe("microsoftTranslate lang map", () => {
 });
 
 describe("microsoftTranslate request shape", () => {
-  beforeEach(() => {
-    // 清空模块级 LRU 缓存：写入一条占位再整体淘汰不可行，改为逐 key 失效
-    // —— 简化：每个用例用不同文本，天然绕开缓存
-  });
-
   it("sends a JSON string array to translatetext, omits from when auto", async () => {
     const calls = [];
     const fetchImpl = async (url, init) => {
@@ -214,5 +209,36 @@ describe("microsoftTranslate retry & cache", () => {
       }),
       (err) => err.name === "AbortError" || /取消/.test(err.message)
     );
+  });
+
+  it("falls back to Bing route when Edge endpoint returns 404", async () => {
+    __test__.resetBingTokenCache();
+    const calls = [];
+    const html =
+      'var params_AbusePreventionHelper = [123,"token123",3600000];\nIG:"AABB"\ndata-iid="inst.1"';
+    const fetchImpl = async (url) => {
+      calls.push(url);
+      if (url.includes("edge.microsoft.com")) {
+        return jsonResponse(404, "not found");
+      }
+      if (url.includes("/translator")) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => html,
+        };
+      }
+      if (url.includes("/ttranslatev3")) {
+        return jsonResponse(200, [{ translations: [{ text: "你好，Bing" }] }]);
+      }
+      return jsonResponse(500, "unknown");
+    };
+
+    const res = await translate("hello bing fallback", "auto", "zh", {
+      fetchImpl,
+      rateLimitRetries: 0,
+    });
+    assert.equal(res.translatedText, "你好，Bing");
+    assert.equal(res.via, "microsoft-bing");
   });
 });
