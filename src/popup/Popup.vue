@@ -260,6 +260,10 @@ import {
 import { getProviderConfig } from "../config/providers.js";
 import { speakText, stopSpeaking } from "../utils/speak.js";
 import { normalizeGeneralSettings } from "../utils/generalSettings.js";
+import {
+  classifyMessagingError,
+  MESSAGING_ERROR_KIND,
+} from "../utils/messagingErrors.js";
 
 export default {
   name: "Popup",
@@ -610,24 +614,27 @@ export default {
           return await chrome.runtime.sendMessage(message);
         } catch (error) {
           lastError = error;
-          const msg = error.message || "";
-          // 只有连接类错误才重试
-          if (
-            msg.includes("Could not establish connection") ||
-            msg.includes("Receiving end does not exist") ||
-            msg.includes("Extension context invalidated") ||
-            msg.includes("Failed to load the script")
-          ) {
-            if (attempt < maxRetries - 1) {
-              await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
-              continue;
-            }
-          } else {
-            throw error;
+          const kind = classifyMessagingError(error);
+          // 上下文失效、后台脚本加载失败：重试永远不会成功，直接给恢复动作
+          if (kind === MESSAGING_ERROR_KIND.CONTEXT_INVALIDATED) {
+            throw new Error("扩展上下文已失效，请刷新页面后重试");
+          }
+          if (kind === MESSAGING_ERROR_KIND.SCRIPT_LOAD_FAILED) {
+            throw new Error(
+              "扩展后台脚本加载失败，请在 chrome://extensions 重新加载扩展后重试"
+            );
+          }
+          if (kind !== MESSAGING_ERROR_KIND.RETRYABLE) throw error;
+          if (attempt < maxRetries - 1) {
+            await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+            continue;
           }
         }
       }
-      throw new Error("翻译服务暂未就绪，请稍后重试或刷新页面");
+      // 重试耗尽时保留原始错误，否则只剩一句看不出原因的笼统文案
+      throw new Error(
+        `翻译服务暂未就绪（${lastError?.message || "未知错误"}），请稍后重试或刷新页面`
+      );
     }
 
     // 公共翻译核心逻辑
