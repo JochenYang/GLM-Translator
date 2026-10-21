@@ -38,6 +38,11 @@ async function sendMessageWithRetry(message, maxRetries = 3) {
           "扩展后台脚本加载失败，请在 chrome://extensions 重新加载扩展后重试"
         );
       }
+      if (kind === MESSAGING_ERROR_KIND.WORKER_UNAVAILABLE) {
+        throw new Error(
+          "扩展后台服务未启动，请在 chrome://extensions 重新加载扩展后重试"
+        );
+      }
       if (kind !== MESSAGING_ERROR_KIND.RETRYABLE) throw error;
       if (attempt < maxRetries - 1) {
         await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));

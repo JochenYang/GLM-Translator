@@ -33,13 +33,22 @@ describe("classifyMessagingError (shipped)", () => {
     );
   });
 
-  it("retries connection errors raised while the worker wakes up", () => {
-    assert.equal(
-      classifyMessagingError(
-        new Error("Could not establish connection. Receiving end does not exist.")
-      ),
-      MESSAGING_ERROR_KIND.RETRYABLE
-    );
+  it("treats a missing background listener as unrecoverable, not a race", () => {
+    // Measured in Chrome: a message sent while the worker boots is queued and
+    // delivered (6s busy-wait at module scope still succeeded). So "no receiving
+    // end" means the worker never registered its listener and retrying cannot help.
+    // Both wordings Chrome uses for "nobody is listening" must land here.
+    for (const message of [
+      "Could not establish connection. Receiving end does not exist.",
+      "Could not establish connection",
+      "Receiving end does not exist.",
+    ]) {
+      assert.equal(
+        classifyMessagingError(new Error(message)),
+        MESSAGING_ERROR_KIND.WORKER_UNAVAILABLE,
+        `"${message}" must not be retried`
+      );
+    }
   });
 
   it("retries a worker recycled mid-request", () => {
@@ -85,6 +94,11 @@ describe("popup/content retry wrapper wiring", () => {
         src,
         /MESSAGING_ERROR_KIND\.SCRIPT_LOAD_FAILED/,
         `${file} must special-case a failed service worker script load`
+      );
+      assert.match(
+        src,
+        /MESSAGING_ERROR_KIND\.WORKER_UNAVAILABLE/,
+        `${file} must special-case a worker that never started`
       );
       assert.match(src, /chrome:\/\/extensions/, `${file} must state the recovery step`);
       assert.match(src, /lastError\?\.message/, `${file} must keep the raw error`);
