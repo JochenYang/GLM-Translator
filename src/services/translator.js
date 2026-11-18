@@ -6,6 +6,10 @@ import { translate as youdaoTranslate } from "./youdaoTranslate.js";
 import { translate as microsoftTranslate } from "./microsoftTranslate.js";
 import { translate as googleTranslate } from "./googleTranslate.js";
 import { translate as transmartTranslate } from "./transmartTranslate.js";
+import {
+  translate as bilibiliTranslate,
+  normalizeModel as normalizeBilibiliModel,
+} from "./bilibiliTranslate.js";
 import { chunkText } from "../utils/textChunker.js";
 import { resolveSourceLanguage } from "../utils/detectLanguage.js";
 import { getSelectedApiConfig, loadApiConfigs } from "../utils/secureStorage.js";
@@ -199,6 +203,7 @@ const DEFAULT_MODELS = {
   deepseek: "deepseek-chat",
   google: "google-free",
   transmart: "transmart-free",
+  bilibili: "Index-Translate-2B",
 };
 
 // In-flight request cancellation
@@ -409,6 +414,15 @@ export async function translateText(text, from = "auto", to = "zh", options = {}
       if (result?.detectedLanguage) {
         detected = result.detectedLanguage;
       }
+    } else if (provider === "bilibili") {
+      const resolved = resolveSourceLanguage(text, from);
+      effectiveFrom = resolved.sourceLang;
+      detected = resolved.detected;
+      localConfidence = resolved.confidence;
+      result = await bilibiliTranslate(text, effectiveFrom, to, {
+        signal: options.signal,
+        model: normalizeBilibiliModel(config?.model),
+      });
     } else {
       // AI 提供商：标签清洗 + 本地 auto 检测
       const processedText = preprocessTextForTranslation(text);
@@ -722,6 +736,23 @@ export async function testProviderConnection({
     // 免 Key 腾讯 TranSmart 通道直连测试
     try {
       const result = await transmartTranslate("Hello", "en", "zh");
+      return {
+        success: true,
+        message: `连接成功！"Hello" → "${result.translatedText}"`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || "连接失败",
+      };
+    }
+  }
+
+  if (provider === "bilibili") {
+    try {
+      const result = await bilibiliTranslate("Hello", "en", "zh", {
+        model: normalizeBilibiliModel(model),
+      });
       return {
         success: true,
         message: `连接成功！"Hello" → "${result.translatedText}"`,

@@ -17,6 +17,7 @@ export const KNOWN_PROVIDER_ORIGINS = [
   "https://cn.bing.com/*",
   "https://www.bing.com/*",
   "https://transmart.qq.com/*",
+  "https://index-translate.bilibili.com/*",
 ];
 
 /**

@@ -369,7 +369,7 @@ export default {
       forceUpdateKey.value;
       const options = [];
       const seen = new Set();
-      for (const id of ["microsoft", "google", "transmart", "youdao"]) {
+      for (const id of ["bilibili", "microsoft", "google", "transmart", "youdao"]) {
         options.push({
           id,
           name: engineDisplayName(id),

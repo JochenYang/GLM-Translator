@@ -5,6 +5,17 @@ All notable changes to GLM Translator are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-11-18
+
+### Added
+
+- **Bilibili Index-Translate**: Keyless translation engine with
+  Index-Translate-2B, 9B, and 35B-A3B. Requests follow the public
+  chat-completions endpoint and do not send an API key.
+- **Origin rewrite for Bilibili**: The extension Origin is replaced
+  before the request leaves, because `chrome-extension://` is rejected
+  with HTTP 412.
+
 ## [1.6.0] - 2026-10-08
 
 ### Added

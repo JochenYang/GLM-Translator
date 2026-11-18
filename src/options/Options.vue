@@ -382,6 +382,7 @@
                 <li>{{ t("about.privacy.requests") }}</li>
                 <li>{{ t("about.privacy.history") }}</li>
                 <li>{{ t("about.privacy.microsoft") }}</li>
+                <li>{{ t("about.privacy.bilibili") }}</li>
               </ul>
             </div>
 

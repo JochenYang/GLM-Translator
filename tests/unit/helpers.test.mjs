@@ -351,6 +351,32 @@ describe("youdao DNR origin-strip wiring", () => {
   });
 });
 
+describe("bilibili DNR origin rewrite", () => {
+  it("rewrites chrome-extension Origin on the Index-Translate endpoint", () => {
+    const rules = JSON.parse(
+      readFileSync(join(root, "public/rules/provider_headers.json"), "utf8")
+    );
+    const rule = rules.find((item) =>
+      String(item.condition?.urlFilter || "").includes(
+        "index-translate.bilibili.com"
+      )
+    );
+    assert.ok(rule, "missing Index-Translate header rule");
+    const ops = rule.action?.requestHeaders || [];
+    assert.ok(
+      ops.some(
+        (h) =>
+          String(h.header).toLowerCase() === "origin" &&
+          h.operation === "set" &&
+          h.value === "https://index-translate.bilibili.com"
+      )
+    );
+    assert.ok(
+      (rule.condition?.resourceTypes || []).includes("xmlhttprequest")
+    );
+  });
+});
+
 describe("background translate path ensures host permission from selected config", () => {
   it("index.js loads selected config URL, not only request.customUrl", () => {
     const src = readFileSync(join(root, "src/background/index.js"), "utf8");

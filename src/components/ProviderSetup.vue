@@ -205,8 +205,8 @@
           <p class="field-hint">{{ t("provider.apiUrlDesc") }}</p>
         </div>
 
-        <!-- 模型选择 -->
-        <div v-if="!currentProviderConfig?.noApiKeyRequired">
+        <!-- 模型选择。免 Key 引擎默认隐藏；哔哩哔哩有多个模型，仍要可选。 -->
+        <div v-if="showModelField">
           <label class="field-label" for="model-select">
             {{ t("translate.modelSelection") }}
           </label>
@@ -228,7 +228,7 @@
               >
                 {{ modelLabel(model) }}
               </option>
-              <option value="custom">{{ t("provider.model.custom-model") }}</option>
+              <option v-if="!currentProviderConfig?.noApiKeyRequired" value="custom">{{ t("provider.model.custom-model") }}</option>
             </select>
 
             <div v-if="selectedModel === 'custom'" class="mt-2">
@@ -386,6 +386,13 @@ export default {
       return this.selectedProvider
         ? getProviderConfig(this.selectedProvider)
         : null;
+    },
+    showModelField() {
+      const cfg = this.currentProviderConfig;
+      if (!cfg) return false;
+      if (cfg.isCustom) return true;
+      if (!cfg.noApiKeyRequired) return true;
+      return (cfg.models || []).length > 1;
     },
     displayProviders() {
       return this.showAllProviders
@@ -681,6 +688,20 @@ export default {
             }
           }
         }
+
+        if (!this.selectedModel && this.selectedProvider) {
+          const providerApi = (savedApis || []).find(
+            (api) => api.provider === this.selectedProvider
+          );
+          const providerConfig = getProviderConfig(this.selectedProvider);
+          const isPresetModel = providerConfig?.models?.some(
+            (model) => model.id === providerApi?.model
+          );
+          if (isPresetModel) this.selectedModel = providerApi.model;
+          else if (providerConfig?.defaultModel) {
+            this.selectedModel = providerConfig.defaultModel;
+          }
+        }
       } catch (error) {
         console.error("加载配置失败:", error);
       }
@@ -709,9 +730,10 @@ export default {
 
       try {
         // Memory-only test — never overwrites savedApis
-        if (this.selectedProvider === "youdao" || this.selectedProvider === "microsoft") {
+        if (this.currentProviderConfig?.noApiKeyRequired) {
           this.testResult = await testProviderConnection({
             provider: this.selectedProvider,
+            model: this.getFinalModelName(),
           });
           return;
         }
@@ -780,10 +802,35 @@ export default {
 
       if (this.currentProviderConfig?.noApiKeyRequired) {
         const { savedApis } = await loadApiConfigs();
-        await saveApiConfigs(savedApis || [], {
+        const list = [...(savedApis || [])];
+        let selectedApiId = null;
+        const models = this.currentProviderConfig.models || [];
+        if (models.length > 1) {
+          const model = this.getFinalModelName();
+          const existingIndex = list.findIndex(
+            (api) => api.provider === this.selectedProvider
+          );
+          const prev = existingIndex !== -1 ? list[existingIndex] : null;
+          const config = {
+            id: prev?.id || `${this.selectedProvider}_${Date.now()}`,
+            name: this.currentProviderConfig.name,
+            provider: this.selectedProvider,
+            url: this.currentProviderConfig.url || "",
+            model,
+            headers: {},
+            createdAt: prev?.createdAt || Date.now(),
+            lastUsed: null,
+          };
+          if (existingIndex !== -1) list[existingIndex] = config;
+          else list.push(config);
+          selectedApiId = config.id;
+        }
+        await saveApiConfigs(list, {
           selectedProvider: this.selectedProvider,
-          selectedApiId: null,
+          selectedApiId,
         });
+        this.savedApis = list;
+        this.selectedApiId = selectedApiId;
         this.showSuccess = true;
         setTimeout(() => {
           this.showSuccess = false;

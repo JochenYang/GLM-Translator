@@ -224,6 +224,31 @@ export const PROVIDER_PRESETS = {
     ]
   },
 
+  bilibili: {
+    id: 'bilibili',
+    name: '哔哩哔哩翻译',
+    description: 'provider.desc.bilibili',
+    icon: '📺',
+    url: 'https://index-translate.bilibili.com/v1/chat/completions',
+    models: [
+      { id: 'Index-Translate-2B', name: 'Index-Translate-2B（最快）', description: '免费，速度优先' },
+      { id: 'Index-Translate-9B', name: 'Index-Translate-9B', description: '免费，质量更高' },
+      { id: 'Index-Translate-35B-A3B', name: 'Index-Translate-35B-A3B（预览）', description: '免费预览，更慢' }
+    ],
+    defaultModel: 'Index-Translate-2B',
+    apiKeyUrl: '',
+    apiKeyHelp: 'provider.apiKeyHelp.bilibili',
+    pricing: 'provider.pricing.bilibili',
+    features: ['provider.feature.bilibiliFree', 'provider.feature.modelChoice'],
+    noApiKeyRequired: true,
+    setupGuide: [
+      '选择"哔哩哔哩翻译"即可使用',
+      '无需任何 API Key 或配置',
+      '可选 2B、9B、35B-A3B 三种模型',
+      '非官方接口，可能失效'
+    ]
+  },
+
   microsoft: {
     id: 'microsoft',
     name: '微软免费翻译',
@@ -284,6 +309,7 @@ export function getAllProviders() {
 // 获取推荐提供商（免费高速排前列，中国大陆用户友好）
 export function getRecommendedProviders() {
   return [
+    PROVIDER_PRESETS.bilibili,
     PROVIDER_PRESETS.microsoft,
     PROVIDER_PRESETS.google,
     PROVIDER_PRESETS.transmart,
