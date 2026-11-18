@@ -11,8 +11,6 @@ import {
   classifyMessagingError,
   MESSAGING_ERROR_KIND,
 } from "../utils/messagingErrors.js";
-import { speakText, stopSpeaking } from "../utils/speak.js";
-
 let translationIcon = null;
 let lastSelectedText = "";
 let currentSourceLang = "auto";
@@ -315,7 +313,6 @@ function runPopupCleanup() {
 
 function hidePopup() {
   runPopupCleanup();
-  stopSpeaking();
   document.querySelector("#glm-translator-container")?.remove();
   try {
     chrome.runtime.sendMessage({ action: "cancelTranslate" }).catch(() => {});
@@ -472,19 +469,12 @@ function showPopup(x, y, originalHint = "") {
   actionBar.style.cssText =
     "display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:8px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;";
 
-  const speakBtn = document.createElement("button");
-  speakBtn.type = "button";
-  speakBtn.title = "朗读译文";
-  speakBtn.textContent = "朗读";
-  styleActionBtn(speakBtn);
-
   const copyBtn = document.createElement("button");
   copyBtn.type = "button";
   copyBtn.title = "复制译文";
   copyBtn.textContent = "复制";
   styleActionBtn(copyBtn);
 
-  actionBar.appendChild(speakBtn);
   actionBar.appendChild(copyBtn);
   container.appendChild(actionBar);
 
@@ -506,17 +496,6 @@ function showPopup(x, y, originalHint = "") {
     } catch (err) {
       console.error("复制失败:", err);
     }
-  });
-
-  speakBtn.addEventListener("click", () => {
-    // 浏览器内置 Web Speech API（零成本、无外网 TTS）
-    // window.speechSynthesis + SpeechSynthesisUtterance
-    const text = resultEl.textContent || "";
-    if (!text) return;
-    speakText(text, {
-      lang: currentTargetLang || "en",
-      rate: 0.85,
-    });
   });
 
   const retranslate = () => {

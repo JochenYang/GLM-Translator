@@ -89,6 +89,58 @@ export function buildRequestBody(text, source, target, model) {
   };
 }
 
+const IMAGE_MAX_TOKENS = 1024;
+const MAX_IMAGE_URL_LEN = 8_000_000;
+
+export function buildImagePrompt(source, target) {
+  const targetName = languageName(target) || "中文";
+  const sourceName = languageName(source);
+  if (sourceName) {
+    return `请将图片中的${sourceName}文本翻译为${targetName}，直接输出翻译结果，不要进行任何解释。`;
+  }
+  return `请将图片中的文本翻译为${targetName}，直接输出翻译结果，不要进行任何解释。`;
+}
+
+export function buildImageRequestBody(dataUrl, source, target, model) {
+  return {
+    model: normalizeModel(model),
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: buildImagePrompt(source, target) },
+          { type: "image_url", image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    temperature: 0,
+    max_tokens: IMAGE_MAX_TOKENS,
+    stream: false,
+    chat_template_kwargs: { enable_thinking: false },
+  };
+}
+
+/** 从一段 SSE 缓冲里取出已完整的 data 行，返回剩余半行和增量文本。 */
+export function takeSseDeltas(buffer) {
+  const lines = String(buffer).split(/\r?\n/);
+  const rest = lines.pop() ?? "";
+  const deltas = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) continue;
+    const data = trimmed.slice(5).trim();
+    if (!data || data === "[DONE]") continue;
+    try {
+      const json = JSON.parse(data);
+      const delta = json?.choices?.[0]?.delta?.content;
+      if (typeof delta === "string" && delta) deltas.push(delta);
+    } catch {
+      /* 半截 JSON 留到下一包，这里的行已经以换行结束，解析失败就丢掉 */
+    }
+  }
+  return { rest, deltas };
+}
+
 export function parseBilibiliResponse(json) {
   if (json?.error) {
     const msg = json.error.message || json.error.code || "请求失败";
@@ -242,6 +294,106 @@ export async function translate(text, from = "auto", to = "zh", options = {}) {
   }
 }
 
+/**
+ * 图片里的文字翻译。content 是文本段加 image_url，返回仍是纯文本。
+ * @param {string} dataUrl data:image/... 或 http(s) 图片地址
+ */
+export async function translateImage(dataUrl, from = "auto", to = "zh", options = {}) {
+  const {
+    signal,
+    fetchImpl = globalThis.fetch,
+    timeoutMs = 60000,
+    model,
+    onChunk,
+  } = options;
+  throwIfAborted(signal);
+  if (!fetchImpl) throw new Error("当前环境不支持网络请求");
+  const url = dataUrl == null ? "" : String(dataUrl).trim();
+  if (!url.startsWith("data:image/") && !url.startsWith("http://") && !url.startsWith("https://")) {
+    throw new Error("图片格式无法识别");
+  }
+  if (url.length > MAX_IMAGE_URL_LEN) {
+    throw new Error("图片太大，请缩小截图后再试");
+  }
+
+  const body = buildImageRequestBody(url, from, to, model);
+  body.stream = true;
+  const { signal: reqSignal, cleanup } = withTimeout(signal, timeoutMs);
+  try {
+    const response = await fetchImpl(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "omit",
+      cache: "no-store",
+      signal: reqSignal,
+    });
+    if (!response.ok) {
+      let msg = `HTTP ${response.status}`;
+      try {
+        const json = await response.json();
+        msg = json?.error?.message || msg;
+      } catch {
+        /* 风控页不是 JSON */
+      }
+      cleanup();
+      throw new Error(`哔哩哔哩翻译请求失败（${String(msg).slice(0, 200)}）`);
+    }
+
+    const contentType = response.headers?.get?.("content-type") || "";
+    if (!response.body || contentType.includes("application/json")) {
+      const json = await response.json();
+      cleanup();
+      const translatedText = parseBilibiliResponse(json);
+      onChunk?.(translatedText);
+      return {
+        translatedText,
+        from,
+        to,
+        via: "bilibili-index-translate-image",
+      };
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let pending = "";
+    let full = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      pending += decoder.decode(value, { stream: true });
+      const taken = takeSseDeltas(pending);
+      pending = taken.rest;
+      if (taken.deltas.length) {
+        full += taken.deltas.join("");
+        onChunk?.(full);
+      }
+    }
+    pending += decoder.decode();
+    const tail = takeSseDeltas(pending + "\n");
+    if (tail.deltas.length) {
+      full += tail.deltas.join("");
+      onChunk?.(full);
+    }
+    cleanup();
+    const translatedText = full.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    if (!translatedText) throw new Error("哔哩哔哩翻译结果为空");
+    return {
+      translatedText,
+      from,
+      to,
+      via: "bilibili-index-translate-image",
+    };
+  } catch (err) {
+    cleanup();
+    if (err?.name === "AbortError") {
+      if (!signal?.aborted) throw new Error("哔哩哔哩翻译请求超时");
+      throw makeAbortError();
+    }
+    throw err;
+  }
+}
+
 export const __test__ = {
   ENDPOINT,
   DEFAULT_MODEL,
@@ -250,6 +402,9 @@ export const __test__ = {
   normalizeModel,
   buildPrompt,
   buildRequestBody,
+  buildImagePrompt,
+  buildImageRequestBody,
+  takeSseDeltas,
   parseBilibiliResponse,
   maxTokensFor,
 };

@@ -563,6 +563,7 @@ export default {
         microsoft: chrome.runtime.getURL("icons/microsoft.png"),
         google: chrome.runtime.getURL("icons/google.png"),
         transmart: chrome.runtime.getURL("icons/transmart.png"),
+        bilibili: chrome.runtime.getURL("icons/bilibili.svg"),
         custom: chrome.runtime.getURL("icons/custom.png"),
       };
       return logoMap[providerId] || null;

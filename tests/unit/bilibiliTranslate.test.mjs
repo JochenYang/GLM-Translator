@@ -61,6 +61,33 @@ describe("bilibiliTranslate prompt and body", () => {
   it("omits the source name when language is auto", () => {
     assert.match(buildPrompt("Hello", "auto", "ja"), /^请将以下文本翻译为日语/);
   });
+
+  it("builds a multimodal body for image translation", () => {
+    const { buildImagePrompt, buildImageRequestBody } = __test__;
+    assert.equal(
+      buildImagePrompt("auto", "zh"),
+      "请将图片中的文本翻译为中文，直接输出翻译结果，不要进行任何解释。"
+    );
+    const body = buildImageRequestBody("data:image/png;base64,abc", "en", "zh", "Index-Translate-9B");
+    assert.equal(body.model, "Index-Translate-9B");
+    assert.equal(body.max_tokens, 1024);
+    assert.equal(body.messages[0].content[0].type, "text");
+    assert.match(body.messages[0].content[0].text, /图片中的英语文本/);
+    assert.equal(body.messages[0].content[1].image_url.url, "data:image/png;base64,abc");
+  });
+
+  it("reads streaming deltas and keeps an unfinished line", () => {
+    const { takeSseDeltas } = __test__;
+    const first = takeSseDeltas(
+      'data: {"choices":[{"delta":{"content":"你"}}]}\n' +
+        'data: {"choices":[{"delta":{"content":"好"}}]}\n' +
+        'data: {"cho'
+    );
+    assert.deepEqual(first.deltas, ["你", "好"]);
+    assert.match(first.rest, /cho$/);
+    const done = takeSseDeltas('data: [DONE]\n');
+    assert.deepEqual(done.deltas, []);
+  });
 });
 
 describe("bilibiliTranslate response parsing", () => {

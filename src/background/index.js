@@ -3,6 +3,7 @@
  */
 import {
   translateTextChunked,
+  translateImage,
   addTranslationHistory,
   cancelActiveTranslation,
 } from "../services/translator.js";
@@ -55,17 +56,14 @@ function setupContextMenu() {
 
 function setupCommandListeners() {
   chrome.commands.onCommand.addListener((command, tab) => {
-    if (command === "translate-selection" && tab && tab.id) {
-      chrome.tabs.sendMessage(
-        tab.id,
-        { action: "contextMenuTranslate" },
-        () => {
-          if (chrome.runtime.lastError) {
-            console.error("发送命令消息失败:", chrome.runtime.lastError);
-          }
-        }
-      );
-    }
+    if (!tab?.id) return;
+    if (command !== "translate-selection") return;
+    const action = "contextMenuTranslate";
+    chrome.tabs.sendMessage(tab.id, { action }, () => {
+      if (chrome.runtime.lastError) {
+        console.error("发送命令消息失败:", chrome.runtime.lastError);
+      }
+    });
   });
 }
 
@@ -73,6 +71,10 @@ function setupMessageListeners() {
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "translate") {
       handleTranslateRequest(request, sender, sendResponse);
+      return true;
+    }
+    if (request.action === "translateImage") {
+      handleTranslateImageRequest(request, sendResponse);
       return true;
     }
     if (request.action === "cancelTranslate") {
@@ -155,6 +157,42 @@ async function ensureHostPermission(url) {
   const already = await chrome.permissions.contains({ origins: [pattern] });
   if (already) return true;
   return chrome.permissions.request({ origins: [pattern] });
+}
+
+async function handleTranslateImageRequest(request, sendResponse) {
+  try {
+    const result = await translateImage(
+      request.image,
+      request.sourceLang || "auto",
+      request.targetLang || "zh",
+      {
+        onChunk: (text) => {
+          try {
+            chrome.runtime.sendMessage({
+              action: "translateImageChunk",
+              text,
+            }).catch(() => {});
+          } catch (_) {
+            /* popup 已关闭 */
+          }
+        },
+      }
+    );
+    try {
+      await addTranslationHistory({
+        originalText: "[image]",
+        translatedText: result.translatedText,
+        from: result.from || request.sourceLang,
+        to: result.to || request.targetLang,
+      });
+    } catch (e) {
+      console.warn("保存历史记录失败:", e);
+    }
+    sendResponse(result);
+  } catch (error) {
+    console.error("图片翻译出错:", error);
+    sendResponse({ error: error.message || "图片翻译失败" });
+  }
 }
 
 async function handleTranslateRequest(request, sender, sendResponse) {

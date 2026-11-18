@@ -248,6 +248,16 @@ describe("normalizeGeneralSettings", () => {
     const g = normalizeGeneralSettings({ minSelectionLength: 9999 });
     assert.equal(g.minSelectionLength, 500);
     assert.equal(g.enableSelection, true);
+    assert.equal(g.selectionTrigger, "icon");
+  });
+
+  it("keeps instant trigger and a disabled selection switch", () => {
+    const g = normalizeGeneralSettings({
+      selectionTrigger: "instant",
+      enableSelection: false,
+    });
+    assert.equal(g.selectionTrigger, "instant");
+    assert.equal(g.enableSelection, false);
   });
 });
 
@@ -477,10 +487,9 @@ describe("speakText Web Speech helper (shipped)", () => {
     assert.equal(resolveSpeakLang("这是一段中文", "en").startsWith("zh"), true);
   });
 
-  it("content.js uses speakText for selection TTS", () => {
+  it("content.js no longer exposes selection TTS", () => {
     const src = readFileSync(join(root, "src/content/content.js"), "utf8");
-    assert.match(src, /speakText/);
-    assert.match(src, /rate:\s*0\.85/);
+    assert.equal(/speakText/.test(src), false);
   });
 
   it("background proxies fetchTtsAudio", () => {

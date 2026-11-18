@@ -1,18 +1,12 @@
 <template>
-  <div class="min-h-screen bg-slate-50 text-slate-800">
-    <!-- 顶部栏 -->
-    <header
-      class="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur"
-    >
+  <div class="min-h-screen bg-slate-100 text-slate-800">
+    <header class="sticky top-0 z-20 border-b border-slate-200 bg-white">
       <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
-        <img
-          :src="logoUrl"
-          alt="GLM Translator"
-          class="h-8 w-auto"
-        />
-        <h1 class="text-base font-semibold">
-          {{ t("settings.title") }}
-        </h1>
+        <img :src="logoUrl" alt="GLM Translator" class="h-8 w-8" />
+        <div>
+          <h1 class="text-sm font-semibold leading-5">GLM Translator</h1>
+          <p class="text-xs text-slate-500">{{ t("settings.title") }}</p>
+        </div>
 
         <div class="ml-auto flex items-center gap-3">
           <div
@@ -210,112 +204,6 @@
                 </div>
               </div>
             </section>
-
-            <!-- 语音朗读预览 -->
-            <section class="card-section">
-              <h2 class="section-title">
-                {{ t("settings.voice.title") }}
-              </h2>
-              <p class="section-desc mt-1">
-                {{ t("settings.voice.desc") }}
-              </p>
-
-              <!-- 发音模式选择器 -->
-              <div class="mt-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                <label class="field-label" for="voice-mode-select">
-                  {{ t("settings.voice.modeLabel") }}
-                </label>
-                <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <select
-                    id="voice-mode-select"
-                    v-model="settings.voiceMode"
-                    @change="onVoiceModeChange"
-                    class="select max-w-sm"
-                  >
-                    <option value="online">{{ t("settings.voice.modeOnline") }}</option>
-                    <option value="auto">{{ t("settings.voice.modeAuto") }}</option>
-                    <option value="local">{{ t("settings.voice.modeLocal") }}</option>
-                  </select>
-                </div>
-                <p class="field-hint mt-2">
-                  {{ t("settings.voice.modeHint") }}
-                </p>
-              </div>
-
-              <div class="mt-4 grid gap-4 md:grid-cols-2">
-                <div
-                  v-for="lang in ['zh', 'en']"
-                  :key="lang"
-                  class="rounded-lg border border-slate-200 bg-slate-50/60 p-4"
-                >
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="font-semibold text-slate-800">
-                      {{ lang === "zh" ? t("settings.voice.zh") : t("settings.voice.en") }}
-                    </span>
-                    <span class="text-xs text-slate-400">
-                      {{ lang === "zh" ? "zh-CN" : "en-US" }}
-                    </span>
-                  </div>
-
-                  <!-- 双试听操作行：短词真人原声与长句 -->
-                  <div class="mt-3 space-y-2">
-                    <div class="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white p-2.5">
-                      <div class="min-w-0 flex-1">
-                        <div class="text-xs text-slate-400">
-                          {{ lang === "zh" ? "中文短词 (真人母语原声)" : "English Word (Human Voice)" }}
-                        </div>
-                        <div class="text-sm font-medium text-slate-700">
-                          “{{ lang === "zh" ? voiceSamples.zhShort : voiceSamples.enShort }}”
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        @click="previewSpeak(lang, 'short')"
-                        :disabled="speakingPreview === lang + '-short'"
-                        class="btn-primary shrink-0 px-3 py-1 text-xs"
-                      >
-                        {{
-                          speakingPreview === lang + "-short"
-                            ? t("settings.voice.playing")
-                            : t("settings.voice.previewShort")
-                        }}
-                      </button>
-                    </div>
-
-                    <div class="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white p-2.5">
-                      <div class="min-w-0 flex-1">
-                        <div class="text-xs text-slate-400">
-                          {{ lang === "zh" ? "长句 (整句朗读)" : "Sentence (Full Speech)" }}
-                        </div>
-                        <div class="truncate text-xs text-slate-600">
-                          {{ lang === "zh" ? voiceSamples.zhSentence : voiceSamples.enSentence }}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        @click="previewSpeak(lang, 'sentence')"
-                        :disabled="speakingPreview === lang + '-sentence'"
-                        class="btn-secondary shrink-0 px-3 py-1 text-xs"
-                      >
-                        {{
-                          speakingPreview === lang + "-sentence"
-                            ? t("settings.voice.playing")
-                            : t("settings.voice.previewSentence")
-                        }}
-                      </button>
-                    </div>
-                  </div>
-
-                  <p class="mt-3 text-xs text-slate-500">
-                    {{ t("settings.voice.engine") }}:
-                    {{ voiceEngines[lang].voiceName }}
-                  </p>
-                  <p class="mt-0.5 text-xs text-slate-400">
-                    {{ voiceEngines[lang].detail }}
-                  </p>
-                </div>
-              </div>
-            </section>
           </div>
 
           <!-- 翻译历史 -->
@@ -434,8 +322,6 @@ import {
   getTranslationHistory,
   clearTranslationHistory,
 } from "../utils/storage.js";
-import { speakText, describeSpeakEngine, loadVoices } from "../utils/speak.js";
-
 const NAV_ICONS = {
   provider:
     "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
@@ -466,17 +352,6 @@ export default {
       history: [],
       saveToast: "",
       saveToastTimer: null,
-      speakingPreview: "",
-      voiceSamples: {
-        zhShort: "你好世界",
-        zhSentence: "你好，这是 GLM Translator 的中文朗读预览。希望听起来自然流畅。",
-        enShort: "Hello world",
-        enSentence: "Hello, this is a voice preview from GLM Translator. I hope it sounds clear and natural.",
-      },
-      voiceEngines: {
-        zh: { mode: "online", voiceName: "…", detail: "" },
-        en: { mode: "local", voiceName: "…", detail: "" },
-      },
     };
   },
   computed: {
@@ -511,70 +386,8 @@ export default {
   async mounted() {
     await this.initI18nLanguage();
     await this.loadSettings();
-    this.refreshVoiceEngines();
-    // Chrome 音色列表常异步就绪
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      loadVoices(window.speechSynthesis);
-      window.speechSynthesis.addEventListener("voiceschanged", () => {
-        this.refreshVoiceEngines();
-      });
-    }
   },
   methods: {
-    onVoiceModeChange() {
-      this.refreshVoiceEngines();
-      this.saveSettings();
-    },
-
-    refreshVoiceEngines() {
-      try {
-        const mode = this.settings?.voiceMode || "online";
-        this.voiceEngines = {
-          zh: describeSpeakEngine("zh", mode),
-          en: describeSpeakEngine("en", mode),
-        };
-      } catch (e) {
-        console.warn("刷新朗读引擎信息失败:", e);
-      }
-    },
-
-    previewSpeak(lang, type = "short") {
-      const isShort = type === "short";
-      const text =
-        lang === "en"
-          ? isShort
-            ? this.voiceSamples.enShort
-            : this.voiceSamples.enSentence
-          : isShort
-            ? this.voiceSamples.zhShort
-            : this.voiceSamples.zhSentence;
-
-      const previewKey = `${lang}-${type}`;
-      this.speakingPreview = previewKey;
-      this.refreshVoiceEngines();
-
-      speakText(text, {
-        lang,
-        rate: 0.85,
-        voiceMode: this.settings?.voiceMode || "online",
-        onEnd: () => {
-          if (this.speakingPreview === previewKey) this.speakingPreview = "";
-        },
-        onError: () => {
-          if (this.speakingPreview === previewKey) this.speakingPreview = "";
-        },
-        onUnsupported: (msg) => {
-          alert(msg);
-          if (this.speakingPreview === previewKey) this.speakingPreview = "";
-        },
-      });
-
-      const ms = Math.min(20000, Math.max(2500, text.length * 150));
-      setTimeout(() => {
-        if (this.speakingPreview === previewKey) this.speakingPreview = "";
-      }, ms);
-    },
-
     showSaveToast(msg) {
       this.saveToast = msg || this.t("settings.saved");
       if (this.saveToastTimer) clearTimeout(this.saveToastTimer);

@@ -1,245 +1,120 @@
 <template>
-  <div class="popup-container p-4">
-    <!-- 顶部工具栏 -->
-    <div class="flex items-center justify-between mb-4">
-      <!-- 语言选择区域 -->
-      <div class="flex items-center flex-1">
-        <!-- 源语言选择 -->
-        <select
-          v-model="sourceLang"
-          class="language-select"
-          @change="onSourceLangChange"
-        >
-          <option value="auto">{{ translate("lang.auto") }}</option>
-          <optgroup :label="translate('lang.common')">
-            <option
-              v-for="code in commonLanguages"
-              :key="code"
-              :value="code"
-            >
-              {{ languages[code] || code }}
-            </option>
-          </optgroup>
-          <optgroup :label="translate('lang.all')">
-            <option
-              v-for="code in otherLanguages"
-              :key="code"
-              :value="code"
-            >
-              {{ languages[code] || code }}
-            </option>
-          </optgroup>
-        </select>
-
-        <!-- 切换按钮 -->
-        <button
-          class="language-switch"
-          @click="switchLanguages"
-          :title="translate('popup.switchLanguages')"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M8 3L4 7L8 11"></path>
-            <path d="M4 7H20"></path>
-            <path d="M16 21L20 17L16 13"></path>
-            <path d="M20 17H4"></path>
-          </svg>
-        </button>
-
-        <!-- 目标语言选择 -->
-        <select
-          v-model="targetLang"
-          class="language-select"
-          @change="onTargetLangChange"
-        >
-          <optgroup :label="translate('lang.common')">
-            <option
-              v-for="code in commonLanguages"
-              :key="code"
-              :value="code"
-            >
-              {{ languages[code] || code }}
-            </option>
-          </optgroup>
-          <optgroup :label="translate('lang.all')">
-            <option
-              v-for="code in otherLanguages"
-              :key="code"
-              :value="code"
-            >
-              {{ languages[code] || code }}
-            </option>
-          </optgroup>
-        </select>
+  <div
+    class="shell"
+    @paste="onPaste"
+    @dragover.prevent="dragOver = true"
+    @dragleave.prevent="dragOver = false"
+    @drop.prevent="onDrop"
+  >
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-logo" :src="logoUrl" alt="GLM Translator" />
+        <span class="brand-name">GLM</span>
       </div>
-
-      <!-- 设置按钮 -->
-      <button
-        class="settings-btn"
-        @click="openSettings"
-        :title="translate('popup.settings')"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          class="settings-icon"
-        >
-          <circle cx="12" cy="12" r="3"></circle>
-          <path
-            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-          ></path>
-        </svg>
-      </button>
-    </div>
-
-    <!-- 引擎切换行 -->
-    <div class="engine-row">
-      <label class="engine-label" for="engine-select">{{
-        translate("popup.engineLabel")
-      }}</label>
+      <label class="sr-only" for="engine-select">{{ translate("popup.engineLabel") }}</label>
+      <img
+        v-if="currentProvider === 'bilibili'"
+        class="engine-logo"
+        :src="bilibiliLogo"
+        alt=""
+      />
       <select
         id="engine-select"
         v-model="currentProvider"
         class="engine-select"
         @change="onEngineChange"
       >
-        <option
-          v-for="engine in engineOptions"
-          :key="engine.id"
-          :value="engine.id"
-        >
+        <option v-for="engine in engineOptions" :key="engine.id" :value="engine.id">
           {{ engine.name }}
         </option>
       </select>
-      <span v-if="engineHint" class="engine-hint">{{ engineHint }}</span>
-      <span
-        v-if="detectedLabel"
-        class="detected-badge"
-        :title="detectedLabel"
-        >{{ detectedLabel }}</span
-      >
-    </div>
+      <button type="button" class="icon-btn" @click="openSettings" :title="translate('popup.settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
 
-    <!-- 翻译区域 -->
-    <div class="translation-content">
-      <!-- 输入区域 -->
-      <div class="translation-area">
-        <textarea
-          v-model="inputText"
-          class="input-area"
-          :placeholder="translate('popup.inputPlaceholder')"
-          @input="handleInput"
-          ref="inputTextarea"
-        ></textarea>
-        <div v-if="inputText.trim()" class="input-actions">
-          <button
-            type="button"
-            class="action-btn"
-            @click="toggleSpeakInput"
-            :title="isSpeakingInput ? translate('popup.stopSpeech') : translate('popup.speakInput')"
-          >
-            <svg
-              v-if="isSpeakingInput"
-              viewBox="0 0 24 24"
-              class="action-icon text-primary-600 animate-pulse"
-              fill="currentColor"
-            >
-              <rect x="6" y="6" width="12" height="12" rx="2" />
-            </svg>
-            <svg
-              v-else
-              viewBox="0 0 24 24"
-              class="action-icon"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-            </svg>
-          </button>
-        </div>
-        <div class="char-count">{{ inputText.length }}</div>
-      </div>
-
-      <!-- 翻译结果区域 - 默认显示 -->
-      <div class="translation-area">
-        <div
-          class="result-area"
-          :class="{ empty: !translatedText && !isTranslating }"
-          ref="resultArea"
-        >
-          <div v-if="isTranslating" class="loading-state">
-            <div class="loading-spinner"></div>
-            <span>{{ progressText }}</span>
-          </div>
-          <div v-else-if="translatedText" class="result-text">
-            {{ translatedText }}
-          </div>
-          <div v-else class="empty-result">
-            {{ translate("popup.emptyResult") }}
-          </div>
-          <div v-if="translatedText" class="result-actions">
-            <button
-              type="button"
-              class="action-btn"
-              @click="toggleSpeakResult"
-              :title="isSpeakingResult ? translate('popup.stopSpeech') : translate('popup.speakResult')"
-            >
-              <svg
-                v-if="isSpeakingResult"
-                viewBox="0 0 24 24"
-                class="action-icon text-primary-600 animate-pulse"
-                fill="currentColor"
-              >
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
-              <svg
-                v-else
-                viewBox="0 0 24 24"
-                class="action-icon"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-              </svg>
-            </button>
-            <button
-              type="button"
-              class="action-btn"
-              @click="copyText"
-              :title="translate('popup.copyTranslation')"
-            >
-              <svg viewBox="0 0 24 24" class="action-icon">
-                <path
-                  fill="currentColor"
-                  d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+    <div class="langbar">
+      <select v-model="sourceLang" class="lang" @change="onSourceLangChange">
+        <option value="auto">{{ translate("lang.auto") }}</option>
+        <optgroup :label="translate('lang.common')">
+          <option v-for="code in commonLanguages" :key="'s'+code" :value="code">{{ languages[code] || code }}</option>
+        </optgroup>
+        <optgroup :label="translate('lang.all')">
+          <option v-for="code in otherLanguages" :key="'sa'+code" :value="code">{{ languages[code] || code }}</option>
+        </optgroup>
+      </select>
+      <button type="button" class="swap" @click="switchLanguages" :title="translate('popup.switchLanguages')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M8 3L4 7L8 11"></path>
+          <path d="M4 7H20"></path>
+          <path d="M16 21L20 17L16 13"></path>
+          <path d="M20 17H4"></path>
+        </svg>
+      </button>
+      <select v-model="targetLang" class="lang" @change="onTargetLangChange">
+        <optgroup :label="translate('lang.common')">
+          <option v-for="code in commonLanguages" :key="'t'+code" :value="code">{{ languages[code] || code }}</option>
+        </optgroup>
+        <optgroup :label="translate('lang.all')">
+          <option v-for="code in otherLanguages" :key="'ta'+code" :value="code">{{ languages[code] || code }}</option>
+        </optgroup>
+      </select>
+      <span v-if="detectedLabel" class="detected">{{ detectedLabel }}</span>
     </div>
+    <p v-if="engineHint" class="hint warn">{{ engineHint }}</p>
+
+    <section class="panel" :class="{ over: dragOver }">
+      <div class="panel-label">
+        <span>{{ translate("popup.sourceLabel") }}</span>
+        <button type="button" class="text-btn" @click="fileInput?.click()">{{ translate("popup.pickImage") }}</button>
+        <input ref="fileInput" class="file" type="file" accept="image/*" @change="onFile" />
+      </div>
+      <div v-if="pastedImage" class="shot">
+        <img :src="pastedImage" alt="" />
+        <button type="button" class="text-btn" @click="clearImage">{{ translate("popup.clearImage") }}</button>
+      </div>
+      <textarea
+        v-else
+        v-model="inputText"
+        class="source"
+        :placeholder="translate('popup.inputPlaceholder')"
+        @input="handleInput"
+        ref="inputTextarea"
+      ></textarea>
+      <div class="panel-foot">
+        <span>{{ pastedImage ? translate("popup.imageNote") : translate("popup.pasteHint") }}</span>
+        <span v-if="!pastedImage">{{ inputText.length }}</span>
+      </div>
+    </section>
+
+    <section class="panel result">
+      <div class="panel-label">
+        <span>{{ translate("popup.resultLabel") }}</span>
+        <span v-if="isTranslating" class="hint">{{ progressText }}</span>
+      </div>
+      <div class="result-body" ref="resultArea">
+        <div v-if="isTranslating && !translatedText" class="loading-state">
+          <div class="loading-spinner"></div>
+          <span>{{ progressText }}</span>
+        </div>
+        <div v-else-if="translatedText" class="result-text">{{ translatedText }}</div>
+        <div v-else class="empty-result">{{ translate("popup.emptyResult") }}</div>
+      </div>
+      <div v-if="translatedText && !isTranslating" class="panel-foot">
+        <span></span>
+        <button type="button" class="icon-btn" @click="copyText" :title="translate('popup.copyTranslation')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+      </div>
+    </section>
   </div>
 </template>
-
 <script>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { allLanguages, COMMON_LANGUAGE_CODES } from "../common/languages";
@@ -250,7 +125,6 @@ import {
   getLanguageDisplayName,
   setupLanguageListener,
 } from "../utils/i18n.js";
-import { getPinyinLetter } from "../utils/pinyin.js";
 import { resolveSourceLanguage } from "../utils/detectLanguage.js";
 import {
   getSelectedApiConfig,
@@ -258,8 +132,6 @@ import {
   saveApiConfigs,
 } from "../utils/secureStorage.js";
 import { getProviderConfig } from "../config/providers.js";
-import { speakText, stopSpeaking } from "../utils/speak.js";
-import { normalizeGeneralSettings } from "../utils/generalSettings.js";
 import {
   classifyMessagingError,
   MESSAGING_ERROR_KIND,
@@ -278,6 +150,9 @@ export default {
     const languages = ref(allLanguages);
     const inputTextarea = ref(null);
     const resultArea = ref(null);
+    const fileInput = ref(null);
+    const pastedImage = ref("");
+    const dragOver = ref(false);
     const currentLanguage = ref("zh");
     const forceUpdateKey = ref(0); // 用于强制更新的键
     const detectedCode = ref(null);
@@ -286,82 +161,8 @@ export default {
     let previousProvider = "microsoft"; // 切换失败时回退
     let resizeObserverRef = null; // ResizeObserver 引用，用于 onUnmounted 断开
 
-    // ─── 语音朗读 ────────────────────────────────────────────
-    const isSpeakingInput = ref(false);
-    const isSpeakingResult = ref(false);
-    let generalSettings = normalizeGeneralSettings();
-
-    const loadGeneralSettings = async () => {
-      try {
-        const res = await chrome.storage.sync.get(["general"]);
-        generalSettings = normalizeGeneralSettings(res?.general || {});
-      } catch (e) {
-        console.warn("读取通用设置失败:", e);
-      }
-    };
-
-    const stopAllSpeech = () => {
-      stopSpeaking();
-      isSpeakingInput.value = false;
-      isSpeakingResult.value = false;
-    };
-
-    const toggleSpeakInput = () => {
-      if (isSpeakingInput.value) {
-        stopAllSpeech();
-        return;
-      }
-      stopAllSpeech();
-      const text = inputText.value.trim();
-      if (!text) return;
-
-      let lang = sourceLang.value;
-      if (lang === "auto") {
-        lang = detectedCode.value || resolveSourceLanguage(text);
-      }
-
-      isSpeakingInput.value = true;
-      speakText(text, {
-        lang,
-        voiceMode: generalSettings.voiceMode || "online",
-        onEnd: () => {
-          isSpeakingInput.value = false;
-        },
-        onError: () => {
-          isSpeakingInput.value = false;
-        },
-        onUnsupported: (msg) => {
-          isSpeakingInput.value = false;
-          alert(msg);
-        },
-      });
-    };
-
-    const toggleSpeakResult = () => {
-      if (isSpeakingResult.value) {
-        stopAllSpeech();
-        return;
-      }
-      stopAllSpeech();
-      const text = translatedText.value.trim();
-      if (!text || text === "翻译中..." || text.startsWith("翻译失败")) return;
-
-      isSpeakingResult.value = true;
-      speakText(text, {
-        lang: targetLang.value,
-        voiceMode: generalSettings.voiceMode || "online",
-        onEnd: () => {
-          isSpeakingResult.value = false;
-        },
-        onError: () => {
-          isSpeakingResult.value = false;
-        },
-        onUnsupported: (msg) => {
-          isSpeakingResult.value = false;
-          alert(msg);
-        },
-      });
-    };
+    const logoUrl = chrome.runtime.getURL("icons/icon48.png");
+    const bilibiliLogo = chrome.runtime.getURL("icons/bilibili.svg");
 
     // ─── 引擎切换 ────────────────────────────────────────────
     // 免 Key 引擎始终可选；AI 引擎仅在设置页保存过配置后出现
@@ -441,7 +242,9 @@ export default {
         }
         previousProvider = target;
         engineHint.value = "";
-        if (inputText.value.trim()) {
+        if (pastedImage.value) {
+          await handleImageTranslate();
+        } else if (inputText.value.trim()) {
           await handleTranslate();
         }
       } catch (error) {
@@ -576,7 +379,9 @@ export default {
         });
 
         // 如果有输入文本，重新翻译
-        if (inputText.value.trim()) {
+        if (pastedImage.value) {
+          await handleImageTranslate();
+        } else if (inputText.value.trim()) {
           await handleTranslate();
         }
       } catch (error) {
@@ -678,9 +483,97 @@ export default {
     }
 
     // 翻译处理函数
+    function readImageFile(file) {
+      if (!file || !file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        downscaleImage(String(reader.result))
+          .then((url) => {
+            pastedImage.value = url;
+            inputText.value = "";
+            dragOver.value = false;
+            handleImageTranslate();
+          })
+          .catch((err) => {
+            translatedText.value = `翻译失败: ${err.message || "无法读取图片"}`;
+          });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function downscaleImage(dataUrl, maxEdge = 1600) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxEdge / Math.max(img.width, img.height, 1));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        img.onerror = () => reject(new Error("无法读取图片"));
+        img.src = dataUrl;
+      });
+    }
+
+    function onPaste(event) {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type && item.type.startsWith("image/")) {
+          event.preventDefault();
+          readImageFile(item.getAsFile());
+          return;
+        }
+      }
+    }
+
+    function onDrop(event) {
+      dragOver.value = false;
+      const file = event.dataTransfer?.files?.[0];
+      if (file) readImageFile(file);
+    }
+
+    function onFile(event) {
+      const file = event.target.files?.[0];
+      if (file) readImageFile(file);
+      event.target.value = "";
+    }
+
+    function clearImage() {
+      pastedImage.value = "";
+      translatedText.value = "";
+    }
+
+    async function handleImageTranslate() {
+      if (!pastedImage.value) return;
+      try {
+        isTranslating.value = true;
+        progressCurrent.value = 0;
+        progressTotal.value = 0;
+        translatedText.value = "";
+        const response = await sendMessageWithRetry({
+          action: "translateImage",
+          image: pastedImage.value,
+          sourceLang: sourceLang.value,
+          targetLang: targetLang.value,
+        });
+        if (response?.translatedText) {
+          translatedText.value = response.translatedText;
+        } else {
+          throw new Error(response?.error || "图片翻译失败");
+        }
+      } catch (err) {
+        console.error("图片翻译错误:", err);
+        translatedText.value = `翻译失败: ${err.message}`;
+      } finally {
+        isTranslating.value = false;
+      }
+    }
+
     async function handleTranslate() {
       try {
-        stopAllSpeech();
         isTranslating.value = true;
         progressCurrent.value = 0;
         progressTotal.value = 0;
@@ -753,9 +646,6 @@ export default {
 
     // 修改翻译处理函数
     const handleInput = createDebounce(async () => {
-      // 输入变化时立即停止先前进行的朗读
-      stopAllSpeech();
-
       // 确保输入区域高度自适应
       if (debounceResize) {
         debounceResize();
@@ -837,7 +727,6 @@ export default {
         // 初始化语言与通用配置
         await initI18nLanguage();
         setupI18nLanguageListener();
-        await loadGeneralSettings();
 
         const settings = await chrome.storage.sync.get(["general"]);
 
@@ -890,7 +779,6 @@ export default {
 
     // 组件卸载时清理 ResizeObserver 与停止朗读
     onUnmounted(() => {
-      stopAllSpeech();
       if (resizeObserverRef) {
         resizeObserverRef.disconnect();
         resizeObserverRef = null;
@@ -907,6 +795,9 @@ export default {
       if (request?.action === "translateProgress") {
         progressCurrent.value = request.current || 0;
         progressTotal.value = request.total || 0;
+      }
+      if (request?.action === "translateImageChunk" && request.text) {
+        translatedText.value = request.text;
       }
     };
     progressListener = onProgressMessage;
@@ -931,6 +822,13 @@ export default {
       openSettings,
       inputTextarea,
       resultArea,
+      fileInput,
+      pastedImage,
+      dragOver,
+      onPaste,
+      onDrop,
+      onFile,
+      clearImage,
       currentLanguage,
       translate,
       getLanguageDisplayName,
@@ -938,10 +836,8 @@ export default {
       engineOptions,
       engineHint,
       onEngineChange,
-      isSpeakingInput,
-      isSpeakingResult,
-      toggleSpeakInput,
-      toggleSpeakResult,
+      logoUrl,
+      bilibiliLogo,
     };
   },
 };
@@ -1182,5 +1078,182 @@ export default {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+:global(html),
+:global(body) {
+  margin: 0;
+  background: var(--gt-surface-muted);
+}
+
+.shell {
+  width: 400px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--gt-text);
+}
+
+.topbar,
+.langbar,
+.panel-label,
+.panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.brand-logo,
+.engine-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.engine-logo {
+  width: 16px;
+  height: 16px;
+}
+
+.brand-name {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.shell .engine-select,
+.lang {
+  height: 30px;
+  border: 1px solid var(--gt-border);
+  border-radius: var(--gt-radius-sm);
+  background: var(--gt-surface);
+  color: var(--gt-text);
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.shell .engine-select {
+  width: 148px;
+  margin: 0;
+}
+
+.lang { flex: 1; min-width: 0; }
+
+.icon-btn,
+.swap {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--gt-border);
+  border-radius: var(--gt-radius-sm);
+  background: var(--gt-surface);
+  color: var(--gt-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.icon-btn svg,
+.swap svg { width: 16px; height: 16px; }
+
+.icon-btn:hover,
+.swap:hover { color: var(--gt-text); background: var(--gt-surface-muted); }
+
+.detected,
+.hint {
+  font-size: 11px;
+  color: var(--gt-text-secondary);
+  white-space: nowrap;
+}
+
+.hint.warn { color: var(--gt-warning); margin: 0; }
+
+.panel {
+  border: 1px solid var(--gt-border);
+  border-radius: var(--gt-radius);
+  background: var(--gt-surface);
+  padding: 8px 10px 6px;
+}
+
+.panel.over { border-color: var(--gt-primary); }
+
+.panel-label,
+.panel-foot {
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--gt-text-muted);
+}
+
+.text-btn {
+  border: 0;
+  background: transparent;
+  color: var(--gt-primary);
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.file { display: none; }
+
+.source {
+  width: 100%;
+  min-height: 96px;
+  max-height: 180px;
+  border: 0;
+  resize: none;
+  outline: none;
+  background: transparent;
+  color: var(--gt-text);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 4px 0;
+}
+
+.shot img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: var(--gt-radius-sm);
+  background: var(--gt-surface-muted);
+}
+
+.result-body {
+  min-height: 88px;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.shell .result-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--gt-text);
+}
+
+.shell .empty-result {
+  color: var(--gt-text-muted);
+  font-size: 13px;
+  padding: 18px 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 </style>

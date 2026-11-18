@@ -8,6 +8,7 @@ import { translate as googleTranslate } from "./googleTranslate.js";
 import { translate as transmartTranslate } from "./transmartTranslate.js";
 import {
   translate as bilibiliTranslate,
+  translateImage as bilibiliTranslateImage,
   normalizeModel as normalizeBilibiliModel,
 } from "./bilibiliTranslate.js";
 import { chunkText } from "../utils/textChunker.js";
@@ -346,6 +347,23 @@ async function callChatCompletions({
   }
 
   throw lastError || new Error("翻译失败");
+}
+
+/**
+ * 截图里的文字。始终走哔哩哔哩图片接口。
+ * 当前引擎是哔哩哔哩时用已选模型，否则用 2B。
+ */
+export async function translateImage(dataUrl, from = "auto", to = "zh", options = {}) {
+  const { provider, config } = await getApiConfig();
+  const model =
+    provider === "bilibili"
+      ? normalizeBilibiliModel(config?.model)
+      : "Index-Translate-2B";
+  return bilibiliTranslateImage(dataUrl, from, to, {
+    model,
+    signal: options.signal,
+    onChunk: options.onChunk,
+  });
 }
 
 /**
